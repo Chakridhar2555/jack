@@ -42,6 +42,39 @@ interface UserSettings {
       message: string
     }
     forwardingAddress: string
+    templates: {
+      birthdayWishes: {
+        enabled: boolean
+        template: string
+        daysBefore: number
+      }
+      weddingGreetings: {
+        enabled: boolean
+        template: string
+        daysAfter: number
+      }
+      seasonalWishes: {
+        enabled: boolean
+        holidays: {
+          christmas: boolean
+          newYear: boolean
+          thanksgiving: boolean
+          valentines: boolean
+        }
+        template: string
+      }
+      promotionalOffers: {
+        enabled: boolean
+        template: string
+        discountCode: string
+        expiryDays: number
+      }
+      referralCodes: {
+        enabled: boolean
+        template: string
+        rewardAmount: string
+      }
+    }
   }
   preferences: {
     language: string
@@ -95,6 +128,39 @@ export default function SettingsPage() {
         message: "",
       },
       forwardingAddress: "",
+      templates: {
+        birthdayWishes: {
+          enabled: false,
+          template: "Dear {name},\n\nWishing you a wonderful birthday! As your real estate agent, I'm grateful to have you as a client.\n\nBest regards,\n{agentName}",
+          daysBefore: 1
+        },
+        weddingGreetings: {
+          enabled: false,
+          template: "Dear {name},\n\nCongratulations on your wedding! Wishing you both a lifetime of happiness in your new home.\n\nBest regards,\n{agentName}",
+          daysAfter: 1
+        },
+        seasonalWishes: {
+          enabled: false,
+          holidays: {
+            christmas: true,
+            newYear: true,
+            thanksgiving: true,
+            valentines: true
+          },
+          template: "Dear {name},\n\nWishing you a wonderful {holiday}! Thank you for being a valued client.\n\nBest regards,\n{agentName}"
+        },
+        promotionalOffers: {
+          enabled: false,
+          template: "Dear {name},\n\nAs a valued client, here's a special discount code: {discountCode}\nValid for {expiryDays} days.\n\nBest regards,\n{agentName}",
+          discountCode: "",
+          expiryDays: 30
+        },
+        referralCodes: {
+          enabled: false,
+          template: "Dear {name},\n\nShare your experience and earn {rewardAmount} for each successful referral!\nYour unique referral code: {referralCode}\n\nBest regards,\n{agentName}",
+          rewardAmount: "$100"
+        }
+      }
     },
     preferences: {
       language: "en",
@@ -119,21 +185,57 @@ export default function SettingsPage() {
   })
 
   useEffect(() => {
-    // Load saved settings from localStorage
-    const savedSettings = localStorage.getItem("userSettings")
-    if (savedSettings) {
-      setSettings(JSON.parse(savedSettings))
+    // Load settings from the API
+    const fetchSettings = async () => {
+      try {
+        const response = await fetch('/api/settings')
+        if (!response.ok) {
+          throw new Error('Failed to fetch settings')
+        }
+        const data = await response.json()
+        if (Object.keys(data).length > 0) {
+          setSettings(data)
+        }
+      } catch (error) {
+        console.error('Error loading settings:', error)
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to load settings. Using default values.",
+        })
+      }
     }
+
+    fetchSettings()
   }, [])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Save settings to localStorage
-    localStorage.setItem("userSettings", JSON.stringify(settings))
-    toast({
-      title: "Settings Updated",
-      description: "Your settings have been successfully saved.",
-    })
+    try {
+      const response = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(settings),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to save settings')
+      }
+
+      toast({
+        title: "Settings Updated",
+        description: "Your settings have been successfully saved.",
+      })
+    } catch (error) {
+      console.error('Error saving settings:', error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to save settings. Please try again.",
+      })
+    }
   }
 
   return (
@@ -291,71 +393,450 @@ export default function SettingsPage() {
                 <CardTitle>Email Settings</CardTitle>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="signature">Email Signature</Label>
-                    <Textarea
-                      id="signature"
-                      value={settings.emailSettings.signature}
-                      onChange={(e) => setSettings({
-                        ...settings,
-                        emailSettings: { ...settings.emailSettings, signature: e.target.value }
-                      })}
-                      rows={4}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="replyTemplate">Reply Template</Label>
-                    <Textarea
-                      id="replyTemplate"
-                      value={settings.emailSettings.replyTemplate}
-                      onChange={(e) => setSettings({
-                        ...settings,
-                        emailSettings: { ...settings.emailSettings, replyTemplate: e.target.value }
-                      })}
-                      rows={4}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="autoResponder">Auto Responder</Label>
-                      <Switch
-                        id="autoResponder"
-                        checked={settings.emailSettings.autoResponder.enabled}
-                        onCheckedChange={(checked) => setSettings({
-                          ...settings,
-                          emailSettings: {
-                            ...settings.emailSettings,
-                            autoResponder: {
-                              ...settings.emailSettings.autoResponder,
-                              enabled: checked
-                            }
-                          }
-                        })}
-              />
-            </div>
-                    {settings.emailSettings.autoResponder.enabled && (
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="signature">Email Signature</Label>
                       <Textarea
-                        value={settings.emailSettings.autoResponder.message}
+                        id="signature"
+                        value={settings.emailSettings.signature}
                         onChange={(e) => setSettings({
                           ...settings,
-                          emailSettings: {
-                            ...settings.emailSettings,
-                            autoResponder: {
-                              ...settings.emailSettings.autoResponder,
-                              message: e.target.value
-                            }
-                          }
+                          emailSettings: { ...settings.emailSettings, signature: e.target.value }
                         })}
                         rows={4}
-                        placeholder="Auto-response message..."
                       />
-                    )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="replyTemplate">Reply Template</Label>
+                      <Textarea
+                        id="replyTemplate"
+                        value={settings.emailSettings.replyTemplate}
+                        onChange={(e) => setSettings({
+                          ...settings,
+                          emailSettings: { ...settings.emailSettings, replyTemplate: e.target.value }
+                        })}
+                        rows={4}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="autoResponder">Auto Responder</Label>
+                        <Switch
+                          id="autoResponder"
+                          checked={settings.emailSettings.autoResponder.enabled}
+                          onCheckedChange={(checked) => setSettings({
+                            ...settings,
+                            emailSettings: {
+                              ...settings.emailSettings,
+                              autoResponder: {
+                                ...settings.emailSettings.autoResponder,
+                                enabled: checked
+                              }
+                            }
+                          })}
+                        />
+                      </div>
+                      {settings.emailSettings.autoResponder.enabled && (
+                        <Textarea
+                          value={settings.emailSettings.autoResponder.message}
+                          onChange={(e) => setSettings({
+                            ...settings,
+                            emailSettings: {
+                              ...settings.emailSettings,
+                              autoResponder: {
+                                ...settings.emailSettings.autoResponder,
+                                message: e.target.value
+                              }
+                            }
+                          })}
+                          rows={4}
+                          placeholder="Auto-response message..."
+                        />
+                      )}
+                    </div>
                   </div>
+
+                  <div className="space-y-6">
+                    <h3 className="text-lg font-medium">Email Templates & Automation</h3>
+                    
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label>Birthday Wishes</Label>
+                          <p className="text-sm text-muted-foreground">Automated birthday emails for clients</p>
+                        </div>
+                        <Switch
+                          checked={settings.emailSettings.templates.birthdayWishes.enabled}
+                          onCheckedChange={(checked) => setSettings({
+                            ...settings,
+                            emailSettings: {
+                              ...settings.emailSettings,
+                              templates: {
+                                ...settings.emailSettings.templates,
+                                birthdayWishes: {
+                                  ...settings.emailSettings.templates.birthdayWishes,
+                                  enabled: checked
+                                }
+                              }
+                            }
+                          })}
+                        />
+                      </div>
+                      {settings.emailSettings.templates.birthdayWishes.enabled && (
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label>Days Before Birthday</Label>
+                              <Input
+                                type="number"
+                                value={settings.emailSettings.templates.birthdayWishes.daysBefore}
+                                onChange={(e) => setSettings({
+                                  ...settings,
+                                  emailSettings: {
+                                    ...settings.emailSettings,
+                                    templates: {
+                                      ...settings.emailSettings.templates,
+                                      birthdayWishes: {
+                                        ...settings.emailSettings.templates.birthdayWishes,
+                                        daysBefore: parseInt(e.target.value)
+                                      }
+                                    }
+                                  }
+                                })}
+                              />
+                            </div>
+                          </div>
+                          <Textarea
+                            value={settings.emailSettings.templates.birthdayWishes.template}
+                            onChange={(e) => setSettings({
+                              ...settings,
+                              emailSettings: {
+                                ...settings.emailSettings,
+                                templates: {
+                                  ...settings.emailSettings.templates,
+                                  birthdayWishes: {
+                                    ...settings.emailSettings.templates.birthdayWishes,
+                                    template: e.target.value
+                                  }
+                                }
+                              }
+                            })}
+                            rows={4}
+                            placeholder="Birthday email template..."
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label>Wedding Greetings</Label>
+                          <p className="text-sm text-muted-foreground">Auto-sent congratulatory messages for newlywed clients</p>
+                        </div>
+                        <Switch
+                          checked={settings.emailSettings.templates.weddingGreetings.enabled}
+                          onCheckedChange={(checked) => setSettings({
+                            ...settings,
+                            emailSettings: {
+                              ...settings.emailSettings,
+                              templates: {
+                                ...settings.emailSettings.templates,
+                                weddingGreetings: {
+                                  ...settings.emailSettings.templates.weddingGreetings,
+                                  enabled: checked
+                                }
+                              }
+                            }
+                          })}
+                        />
+                      </div>
+                      {settings.emailSettings.templates.weddingGreetings.enabled && (
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label>Days After Wedding</Label>
+                              <Input
+                                type="number"
+                                value={settings.emailSettings.templates.weddingGreetings.daysAfter}
+                                onChange={(e) => setSettings({
+                                  ...settings,
+                                  emailSettings: {
+                                    ...settings.emailSettings,
+                                    templates: {
+                                      ...settings.emailSettings.templates,
+                                      weddingGreetings: {
+                                        ...settings.emailSettings.templates.weddingGreetings,
+                                        daysAfter: parseInt(e.target.value)
+                                      }
+                                    }
+                                  }
+                                })}
+                              />
+                            </div>
+                          </div>
+                          <Textarea
+                            value={settings.emailSettings.templates.weddingGreetings.template}
+                            onChange={(e) => setSettings({
+                              ...settings,
+                              emailSettings: {
+                                ...settings.emailSettings,
+                                templates: {
+                                  ...settings.emailSettings.templates,
+                                  weddingGreetings: {
+                                    ...settings.emailSettings.templates.weddingGreetings,
+                                    template: e.target.value
+                                  }
+                                }
+                              }
+                            })}
+                            rows={4}
+                            placeholder="Wedding greeting template..."
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label>Seasonal Wishes</Label>
+                          <p className="text-sm text-muted-foreground">Ready-made email templates for major holidays</p>
+                        </div>
+                        <Switch
+                          checked={settings.emailSettings.templates.seasonalWishes.enabled}
+                          onCheckedChange={(checked) => setSettings({
+                            ...settings,
+                            emailSettings: {
+                              ...settings.emailSettings,
+                              templates: {
+                                ...settings.emailSettings.templates,
+                                seasonalWishes: {
+                                  ...settings.emailSettings.templates.seasonalWishes,
+                                  enabled: checked
+                                }
+                              }
+                            }
+                          })}
+                        />
+                      </div>
+                      {settings.emailSettings.templates.seasonalWishes.enabled && (
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label>Holidays</Label>
+                              <div className="space-y-2">
+                                {Object.entries(settings.emailSettings.templates.seasonalWishes.holidays).map(([holiday, enabled]) => (
+                                  <div key={holiday} className="flex items-center space-x-2">
+                                    <Switch
+                                      checked={enabled}
+                                      onCheckedChange={(checked) => setSettings({
+                                        ...settings,
+                                        emailSettings: {
+                                          ...settings.emailSettings,
+                                          templates: {
+                                            ...settings.emailSettings.templates,
+                                            seasonalWishes: {
+                                              ...settings.emailSettings.templates.seasonalWishes,
+                                              holidays: {
+                                                ...settings.emailSettings.templates.seasonalWishes.holidays,
+                                                [holiday]: checked
+                                              }
+                                            }
+                                          }
+                                        }
+                                      })}
+                                    />
+                                    <Label className="capitalize">{holiday}</Label>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                          <Textarea
+                            value={settings.emailSettings.templates.seasonalWishes.template}
+                            onChange={(e) => setSettings({
+                              ...settings,
+                              emailSettings: {
+                                ...settings.emailSettings,
+                                templates: {
+                                  ...settings.emailSettings.templates,
+                                  seasonalWishes: {
+                                    ...settings.emailSettings.templates.seasonalWishes,
+                                    template: e.target.value
+                                  }
+                                }
+                              }
+                            })}
+                            rows={4}
+                            placeholder="Seasonal wishes template..."
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label>Promotional Offers</Label>
+                          <p className="text-sm text-muted-foreground">Personalized discount codes for leads and clients</p>
+                        </div>
+                        <Switch
+                          checked={settings.emailSettings.templates.promotionalOffers.enabled}
+                          onCheckedChange={(checked) => setSettings({
+                            ...settings,
+                            emailSettings: {
+                              ...settings.emailSettings,
+                              templates: {
+                                ...settings.emailSettings.templates,
+                                promotionalOffers: {
+                                  ...settings.emailSettings.templates.promotionalOffers,
+                                  enabled: checked
+                                }
+                              }
+                            }
+                          })}
+                        />
+                      </div>
+                      {settings.emailSettings.templates.promotionalOffers.enabled && (
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label>Discount Code</Label>
+                              <Input
+                                value={settings.emailSettings.templates.promotionalOffers.discountCode}
+                                onChange={(e) => setSettings({
+                                  ...settings,
+                                  emailSettings: {
+                                    ...settings.emailSettings,
+                                    templates: {
+                                      ...settings.emailSettings.templates,
+                                      promotionalOffers: {
+                                        ...settings.emailSettings.templates.promotionalOffers,
+                                        discountCode: e.target.value
+                                      }
+                                    }
+                                  }
+                                })}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Expiry Days</Label>
+                              <Input
+                                type="number"
+                                value={settings.emailSettings.templates.promotionalOffers.expiryDays}
+                                onChange={(e) => setSettings({
+                                  ...settings,
+                                  emailSettings: {
+                                    ...settings.emailSettings,
+                                    templates: {
+                                      ...settings.emailSettings.templates,
+                                      promotionalOffers: {
+                                        ...settings.emailSettings.templates.promotionalOffers,
+                                        expiryDays: parseInt(e.target.value)
+                                      }
+                                    }
+                                  }
+                                })}
+                              />
+                            </div>
+                          </div>
+                          <Textarea
+                            value={settings.emailSettings.templates.promotionalOffers.template}
+                            onChange={(e) => setSettings({
+                              ...settings,
+                              emailSettings: {
+                                ...settings.emailSettings,
+                                templates: {
+                                  ...settings.emailSettings.templates,
+                                  promotionalOffers: {
+                                    ...settings.emailSettings.templates.promotionalOffers,
+                                    template: e.target.value
+                                  }
+                                }
+                              }
+                            })}
+                            rows={4}
+                            placeholder="Promotional offer template..."
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label>Referral Codes</Label>
+                          <p className="text-sm text-muted-foreground">Automated referral links for client invitations</p>
+                        </div>
+                        <Switch
+                          checked={settings.emailSettings.templates.referralCodes.enabled}
+                          onCheckedChange={(checked) => setSettings({
+                            ...settings,
+                            emailSettings: {
+                              ...settings.emailSettings,
+                              templates: {
+                                ...settings.emailSettings.templates,
+                                referralCodes: {
+                                  ...settings.emailSettings.templates.referralCodes,
+                                  enabled: checked
+                                }
+                              }
+                            }
+                          })}
+                        />
+                      </div>
+                      {settings.emailSettings.templates.referralCodes.enabled && (
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label>Reward Amount</Label>
+                              <Input
+                                value={settings.emailSettings.templates.referralCodes.rewardAmount}
+                                onChange={(e) => setSettings({
+                                  ...settings,
+                                  emailSettings: {
+                                    ...settings.emailSettings,
+                                    templates: {
+                                      ...settings.emailSettings.templates,
+                                      referralCodes: {
+                                        ...settings.emailSettings.templates.referralCodes,
+                                        rewardAmount: e.target.value
+                                      }
+                                    }
+                                  }
+                                })}
+                              />
+                            </div>
+                          </div>
+                          <Textarea
+                            value={settings.emailSettings.templates.referralCodes.template}
+                            onChange={(e) => setSettings({
+                              ...settings,
+                              emailSettings: {
+                                ...settings.emailSettings,
+                                templates: {
+                                  ...settings.emailSettings.templates,
+                                  referralCodes: {
+                                    ...settings.emailSettings.templates.referralCodes,
+                                    template: e.target.value
+                                  }
+                                }
+                              }
+                            })}
+                            rows={4}
+                            placeholder="Referral code template..."
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                   <Button type="submit">Save Email Settings</Button>
                 </form>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="security">
