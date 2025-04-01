@@ -515,10 +515,6 @@ export function LeadListing() {
                 <Home className="h-4 w-4 mr-2" />
                 Website Enquiries (0)
               </Button>
-              <Button className="bg-green-500 hover:bg-green-600 text-white" onClick={() => setIsAddLeadOpen(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Lead
-              </Button>
               <Button variant="outline" className="text-green-500 border-green-500 hover:bg-green-50">
                 <Upload className="h-4 w-4 mr-2" />
                 Import Leads
