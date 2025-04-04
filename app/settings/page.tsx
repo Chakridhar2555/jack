@@ -17,13 +17,8 @@ import { Bell, Mail, Shield, User, Building, Briefcase } from "lucide-react"
 interface UserSettings {
   personal: {
     name: string
-    email: string
+    username: string
     phone: string
-    title: string
-    licenseNumber: string
-    brokerage: string
-    website: string
-    bio: string
     profileImage?: string
   }
   notifications: {
@@ -104,13 +99,8 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState<UserSettings>({
     personal: {
       name: "",
-      email: "",
+      username: "",
       phone: "",
-      title: "",
-      licenseNumber: "",
-      brokerage: "",
-      website: "",
-      bio: "",
     },
     notifications: {
       emailAlerts: true,
@@ -185,34 +175,73 @@ export default function SettingsPage() {
   })
 
   useEffect(() => {
-    // Load settings from the API
-    const fetchSettings = async () => {
+    // Load user profile and settings from the API
+    const fetchData = async () => {
       try {
-        const response = await fetch('/api/settings')
-        if (!response.ok) {
-          throw new Error('Failed to fetch settings')
+        // Fetch user profile
+        const profileResponse = await fetch('/api/users/profile');
+
+        if (!profileResponse.ok) {
+          throw new Error('Failed to fetch user profile');
         }
-        const data = await response.json()
-        if (Object.keys(data).length > 0) {
-          setSettings(data)
+
+        const profileData = await profileResponse.json();
+
+        // Fetch settings
+        const settingsResponse = await fetch('/api/settings');
+
+        if (!settingsResponse.ok) {
+          throw new Error('Failed to fetch settings');
         }
+
+        const settingsData = await settingsResponse.json();
+
+        // Merge profile data with settings
+        setSettings(prevSettings => ({
+          ...prevSettings,
+          ...(Object.keys(settingsData).length > 0 ? settingsData : {}),
+          personal: {
+            ...prevSettings.personal,
+            name: profileData.name || "",
+            username: profileData.username || "",
+            phone: profileData.phone || "",
+          }
+        }));
       } catch (error) {
-        console.error('Error loading settings:', error)
+        console.error('Error loading data:', error);
         toast({
           variant: "destructive",
           title: "Error",
-          description: "Failed to load settings. Using default values.",
-        })
+          description: "Failed to load user data. Using default values.",
+        });
       }
-    }
+    };
 
-    fetchSettings()
-  }, [])
+    fetchData();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      const response = await fetch('/api/settings', {
+      // First update the user profile data in the users collection
+      const userResponse = await fetch('/api/users/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: settings.personal.name,
+          username: settings.personal.username,
+          phone: settings.personal.phone,
+        }),
+      })
+
+      if (!userResponse.ok) {
+        throw new Error('Failed to update user profile')
+      }
+
+      // Then update the settings in the settings collection
+      const settingsResponse = await fetch('/api/settings', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -220,7 +249,7 @@ export default function SettingsPage() {
         body: JSON.stringify(settings),
       })
 
-      if (!response.ok) {
+      if (!settingsResponse.ok) {
         throw new Error('Failed to save settings')
       }
 
@@ -274,7 +303,7 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="name">Full Name</Label>
                       <Input
@@ -287,25 +316,13 @@ export default function SettingsPage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="title">Professional Title</Label>
+                      <Label htmlFor="username">Username</Label>
                       <Input
-                        id="title"
-                        value={settings.personal.title}
+                        id="username"
+                        value={settings.personal.username}
                         onChange={(e) => setSettings({
                           ...settings,
-                          personal: { ...settings.personal, title: e.target.value }
-                        })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={settings.personal.email}
-                        onChange={(e) => setSettings({
-                          ...settings,
-                          personal: { ...settings.personal, email: e.target.value }
+                          personal: { ...settings.personal, username: e.target.value }
                         })}
                       />
                     </div>
@@ -320,40 +337,6 @@ export default function SettingsPage() {
                         })}
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="license">License Number</Label>
-                      <Input
-                        id="license"
-                        value={settings.personal.licenseNumber}
-                        onChange={(e) => setSettings({
-                          ...settings,
-                          personal: { ...settings.personal, licenseNumber: e.target.value }
-                        })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="brokerage">Brokerage</Label>
-                      <Input
-                        id="brokerage"
-                        value={settings.personal.brokerage}
-                        onChange={(e) => setSettings({
-                          ...settings,
-                          personal: { ...settings.personal, brokerage: e.target.value }
-                        })}
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="bio">Professional Bio</Label>
-                    <Textarea
-                      id="bio"
-                      value={settings.personal.bio}
-                      onChange={(e) => setSettings({
-                        ...settings,
-                        personal: { ...settings.personal, bio: e.target.value }
-                      })}
-                      rows={4}
-                    />
                   </div>
                   <Button type="submit">Save Changes</Button>
                 </form>

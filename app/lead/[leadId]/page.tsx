@@ -67,6 +67,7 @@ export default function LeadDetailPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [newNote, setNewNote] = useState("")
   const [users, setUsers] = useState<{ _id: string; name: string }[]>([])
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
 
   useEffect(() => {
     fetchLead()
@@ -162,10 +163,10 @@ export default function LeadDetailPage() {
       duration: 0,
       recording: undefined
     }
-    
+
     const updatedCallHistory = [...(leadData.callHistory || []), newCall]
     setLeadData({ ...leadData, callHistory: updatedCallHistory })
-    
+
     toast({
       title: "Calling",
       description: `Initiating call to ${leadData.phone}`
@@ -178,7 +179,7 @@ export default function LeadDetailPage() {
     try {
       console.log('Adding note for lead:', params.leadId);
       const timestamp = new Date().toISOString()
-      const updatedNotes = leadData.notes 
+      const updatedNotes = leadData.notes
         ? `${leadData.notes}\n\n${timestamp}: ${newNote}`
         : `${timestamp}: ${newNote}`
 
@@ -220,7 +221,7 @@ export default function LeadDetailPage() {
 
   const handlePropertyPreferencesUpdate = (preferences: Partial<Lead['propertyPreferences']>) => {
     if (!leadData) return;
-    
+
     // Ensure all required fields are present with default values if missing
     const updatedPreferences: Lead['propertyPreferences'] = {
       budget: {
@@ -259,7 +260,7 @@ export default function LeadDetailPage() {
     const updatedTasks = leadData.tasks?.map(task =>
       task.id === taskId ? { ...task, ...processedUpdates } : task
     ) || [];
-    
+
     const updatedData = {
       ...leadData,
       tasks: updatedTasks.map(task => ({
@@ -309,7 +310,7 @@ export default function LeadDetailPage() {
     const updatedShowings = leadData.showings?.map(showing =>
       showing.id === showingId ? { ...showing, ...processedUpdates } : showing
     ) || [];
-    
+
     const updatedData = {
       ...leadData,
       showings: updatedShowings.map(showing => ({
@@ -375,8 +376,8 @@ export default function LeadDetailPage() {
     <DashboardLayout>
       <div className="space-y-6 p-6">
         <div className="flex items-center justify-between">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={() => router.back()}
             className="border-black text-black hover:bg-black hover:text-white"
           >
@@ -738,8 +739,8 @@ export default function LeadDetailPage() {
 
                 {/* Add Save Changes button at the bottom */}
                 <div className="border-t pt-6 mt-6">
-                  <Button 
-                    onClick={handleSubmit} 
+                  <Button
+                    onClick={handleSubmit}
                     disabled={isLoading}
                     className="w-full bg-[#ef4444] hover:bg-[#dc2626] text-white"
                   >
@@ -778,7 +779,7 @@ export default function LeadDetailPage() {
                       onChange={(e) => setNewNote(e.target.value)}
                       className="flex-1"
                     />
-                    <Button 
+                    <Button
                       onClick={addNote}
                       className="self-start"
                       disabled={!newNote.trim() || isLoading}
@@ -787,7 +788,7 @@ export default function LeadDetailPage() {
                       Add Note
                     </Button>
                   </div>
-                  
+
                   <div className="space-y-2">
                     {leadData?.notes?.split('\n\n').map((note, index) => (
                       <div key={index} className="text-sm border-b pb-2">
@@ -987,7 +988,7 @@ export default function LeadDetailPage() {
               <CardHeader className="border-b">
                 <div className="flex justify-between items-center">
                   <CardTitle>Property Showings</CardTitle>
-                  <Button 
+                  <Button
                     onClick={() => {
                       const dialog = document.querySelector('[role="dialog"]');
                       if (dialog) {
@@ -1004,8 +1005,9 @@ export default function LeadDetailPage() {
               <CardContent className="p-6">
                 <div className="flex flex-col space-y-8">
                   {/* Calendar Section */}
-                  <ShowingCalendar 
+                  <ShowingCalendar
                     showings={leadData.showings || []}
+                    onDateSelect={(date) => setSelectedDate(date || null)}
                     onAddShowing={async (showing) => {
                       const newShowing: Showing = {
                         id: showing.id || new Date().toISOString(),
@@ -1021,6 +1023,9 @@ export default function LeadDetailPage() {
                         ...leadData,
                         showings: updatedShowings
                       });
+
+                      // Set selected date to the new showing's date
+                      setSelectedDate(newShowing.date);
 
                       try {
                         const response = await fetch(`/api/leads/${params.leadId}/showings`, {
@@ -1103,7 +1108,7 @@ export default function LeadDetailPage() {
                       tasks: updatedTasks
                     } as Lead;
                     setLeadData(updatedData);
-                    
+
                     try {
                       const response = await fetch(`/api/leads/${params.leadId}/tasks`, {
                         method: "PUT",
