@@ -6,6 +6,9 @@ import { Calendar } from '@/components/ui/calendar'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/use-toast"
+import { Button } from "@/components/ui/button"
+import { Plus, RefreshCcw } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 interface Showing {
   id: string
@@ -18,14 +21,37 @@ interface Showing {
   leadId: string
 }
 
+interface Event {
+  _id: string
+  title: string
+  date: string
+  time: string
+  type: 'viewing' | 'meeting' | 'open-house' | 'follow-up' | 'call'
+  description: string
+  location?: string
+  status: string
+}
+
 export default function CalendarPage() {
+  const router = useRouter()
   const [showings, setShowings] = useState<Showing[]>([])
-  const [selectedDate, setSelectedDate] = useState<Date>()
+  const [events, setEvents] = useState<Event[]>([])
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date())
+  const [isLoading, setIsLoading] = useState(true)
   const { toast } = useToast()
 
   useEffect(() => {
-    fetchAllShowings()
+    fetchData()
   }, [])
+
+  const fetchData = async () => {
+    setIsLoading(true)
+    await Promise.all([
+      fetchAllShowings(),
+      fetchEvents()
+    ])
+    setIsLoading(false)
+  }
 
   const fetchAllShowings = async () => {
     try {
@@ -35,12 +61,35 @@ export default function CalendarPage() {
       }
       const data = await response.json()
       setShowings(data)
+      return data
     } catch (error) {
+      console.error("Error fetching showings:", error)
       toast({
         variant: "destructive",
         title: "Error",
         description: "Failed to fetch showings",
       })
+      return []
+    }
+  }
+
+  const fetchEvents = async () => {
+    try {
+      const response = await fetch('/api/events')
+      if (!response.ok) {
+        throw new Error('Failed to fetch events')
+      }
+      const data = await response.json()
+      setEvents(data)
+      return data
+    } catch (error) {
+      console.error("Error fetching events:", error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to fetch events",
+      })
+      return []
     }
   }
 
@@ -51,27 +100,85 @@ export default function CalendarPage() {
     })
   }
 
+  const getEventsForDate = (date: Date) => {
+    return events.filter(event => {
+      const eventDate = new Date(event.date)
+      return eventDate.toDateString() === date.toDateString()
+    })
+  }
+
+  const hasActivitiesOnDate = (date: Date) => {
+    return getShowingsForDate(date).length > 0 || getEventsForDate(date).length > 0
+  }
+
+  const getAllActivitiesForDate = (date: Date) => {
+    const dateShowings = getShowingsForDate(date).map(showing => ({
+      id: showing.id,
+      title: showing.property,
+      time: showing.time,
+      type: 'showing',
+      description: showing.notes || '',
+      status: showing.status
+    }))
+
+    const dateEvents = getEventsForDate(date).map(event => ({
+      id: event._id,
+      title: event.title,
+      time: event.time,
+      type: event.type,
+      description: event.description || '',
+      status: event.status
+    }))
+
+    return [...dateShowings, ...dateEvents].sort((a, b) =>
+      a.time.localeCompare(b.time)
+    )
+  }
+
   return (
     <DashboardLayout>
       <div className="container mx-auto p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold">Calendar</h1>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchData}
+              disabled={isLoading}
+            >
+              <RefreshCcw className="h-4 w-4 mr-2" />
+              {isLoading ? 'Refreshing...' : 'Refresh'}
+            </Button>
+            <Button
+              className="bg-[#ef4444] hover:bg-[#dc2626] text-white"
+              size="sm"
+              onClick={() => router.push('/calendar/add')}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Event
+            </Button>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Calendar Section */}
           <Card className="lg:col-span-2">
             <CardHeader>
-              <CardTitle>Property Showings Calendar</CardTitle>
+              <CardTitle>Calendar</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="border rounded-lg p-6">
                 <Calendar
                   mode="single"
                   selected={selectedDate}
-                  onSelect={setSelectedDate}
+                  onSelect={(date) => date && setSelectedDate(date)}
                   className="w-full"
                   modifiers={{
-                    hasShowing: (date) => getShowingsForDate(date).length > 0
+                    hasActivity: (date) => hasActivitiesOnDate(date)
                   }}
                   modifiersStyles={{
-                    hasShowing: { 
+                    hasActivity: {
                       backgroundColor: 'var(--primary-50)',
                       color: 'var(--primary-900)',
                       fontWeight: 'bold'
@@ -108,65 +215,76 @@ export default function CalendarPage() {
             </CardContent>
           </Card>
 
-          {/* Showings Details Section */}
+          {/* Activities Details Section */}
           <Card className="h-fit">
             <CardHeader>
               <CardTitle>
-                {selectedDate ? 
-                  `Showings for ${selectedDate.toLocaleDateString()}` : 
-                  'Select a date to view showings'
+                {selectedDate ?
+                  `Activities for ${selectedDate.toLocaleDateString()}` :
+                  'Select a date to view activities'
                 }
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {selectedDate ? (
-                <div className="space-y-4">
-                  {getShowingsForDate(selectedDate).length > 0 ? (
-                    getShowingsForDate(selectedDate).map((showing) => (
-                      <div
-                        key={showing.id}
-                        className="border rounded-lg p-4 space-y-2 hover:shadow-md transition-shadow"
-                      >
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <div className="font-semibold text-lg">
-                              {showing.time}
-                            </div>
-                            <div className="text-primary-600 font-medium">
-                              {showing.property}
-                            </div>
-                          </div>
-                          <Badge
-                            variant={
-                              showing.status === 'completed' ? 'secondary' :
-                              showing.status === 'cancelled' ? 'destructive' :
-                              'default'
-                            }
-                            className="capitalize"
-                          >
-                            {showing.status}
-                          </Badge>
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          Lead: {showing.leadName}
-                        </div>
-                        {showing.notes && (
-                          <div className="text-sm text-muted-foreground mt-2 bg-muted/50 p-2 rounded">
-                            {showing.notes}
-                          </div>
-                        )}
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center text-muted-foreground py-6">
-                      No showings scheduled for this date
-                    </div>
-                  )}
+              {isLoading ? (
+                <div className="flex justify-center p-6">
+                  <div className="animate-pulse">Loading...</div>
                 </div>
               ) : (
-                <div className="text-center text-muted-foreground py-6">
-                  Select a date to view scheduled showings
-                </div>
+                selectedDate ? (
+                  <div className="space-y-4">
+                    {getAllActivitiesForDate(selectedDate).length > 0 ? (
+                      getAllActivitiesForDate(selectedDate).map((activity) => (
+                        <div
+                          key={activity.id}
+                          className="border rounded-lg p-4 space-y-2 hover:shadow-md transition-shadow"
+                        >
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <div className="font-semibold text-lg">
+                                {activity.time}
+                              </div>
+                              <div className="text-primary-600 font-medium">
+                                {activity.title}
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              <Badge
+                                variant="outline"
+                                className="capitalize"
+                              >
+                                {activity.type}
+                              </Badge>
+                              <Badge
+                                variant={
+                                  activity.status === 'completed' ? 'secondary' :
+                                    activity.status === 'cancelled' ? 'destructive' :
+                                      'default'
+                                }
+                                className="capitalize"
+                              >
+                                {activity.status}
+                              </Badge>
+                            </div>
+                          </div>
+                          {activity.description && (
+                            <div className="text-sm text-muted-foreground mt-2 bg-muted/50 p-2 rounded">
+                              {activity.description}
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center text-muted-foreground py-6">
+                        No activities scheduled for this date
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center text-muted-foreground py-6">
+                    Select a date to view scheduled activities
+                  </div>
+                )
               )}
             </CardContent>
           </Card>

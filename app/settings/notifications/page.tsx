@@ -87,7 +87,7 @@ export default function NotificationsPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <motion.h1 
+        <motion.h1
           className="text-2xl font-bold"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -117,7 +117,7 @@ export default function NotificationsPage() {
                   This message will be sent to all users with the role "User".
                 </p>
               </div>
-              <Button 
+              <Button
                 onClick={handleSendNotification}
                 disabled={isSending}
                 className="bg-red-500 hover:bg-red-600"
