@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { DashboardLayout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,9 +18,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ArrowLeft } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
 
 interface EventFormData {
-  id: string;
   title: string;
   date: string;
   time: string;
@@ -33,51 +33,80 @@ interface EventFormData {
   propertyDetails?: string;
   notes?: string;
   enableReminder?: boolean;
+  status: string;
 }
 
 export default function AddEventPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<EventFormData>({
-    id: '',
     title: '',
     date: '',
     time: '',
     type: 'meeting',
     description: '',
     enableReminder: true,
+    status: 'scheduled'
   });
 
-  // Initialize the ID and reminder manager on the client side
+  // Initialize form with today's date or from URL parameter
   useEffect(() => {
+    const today = new Date();
+    let formattedDate = today.toISOString().split('T')[0];
+
+    // Check if date is provided in URL (e.g., /calendar/add?date=2023-04-05)
+    const dateParam = searchParams.get('date');
+    if (dateParam) {
+      formattedDate = dateParam;
+    }
+
+    // Set default time to current hour rounded up
+    const hours = today.getHours();
+    const minutes = today.getMinutes() >= 30 ? 30 : 0;
+    const formattedTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+
     setFormData(prev => ({
       ...prev,
-      id: Math.random().toString(36).substring(7)
+      date: formattedDate,
+      time: formattedTime
     }));
-  }, []);
+  }, [searchParams]);
 
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    try {
-      // Only access localStorage on the client side
-      if (typeof window !== 'undefined') {
-        // Get existing events
-        const existingEvents = JSON.parse(localStorage.getItem('calendar_events') || '[]');
-        
-        // Add new event
-        const updatedEvents = [...existingEvents, formData];
-        
-        // Save to localStorage
-        localStorage.setItem('calendar_events', JSON.stringify(updatedEvents));
+    setIsSubmitting(true);
 
-        // Schedule reminder if enabled and phone number is provided
-        if (formData.enableReminder && formData.contactPhone) {
+    try {
+      // Prepare data for API - remove reminder flag as it's not needed in DB
+      const { enableReminder, ...dataForApi } = formData;
+
+      // Save to database through API
+      const response = await fetch('/api/events', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(dataForApi),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save event');
+      }
+
+      // Get the saved event with the _id from the database
+      const savedEvent = await response.json();
+
+      // Schedule reminder if enabled and phone number is provided
+      if (formData.enableReminder && formData.contactPhone) {
+        try {
           // Dynamically import the reminder manager only when needed
           const { reminderManager } = await import('@/lib/reminder-manager');
           await reminderManager.scheduleReminder(
             {
-              id: formData.id,
+              id: savedEvent._id, // Use the MongoDB id
               title: formData.title,
               date: new Date(formData.date),
               time: formData.time,
@@ -89,14 +118,28 @@ export default function AddEventPage() {
             },
             formData.contactPhone
           );
+        } catch (reminderError) {
+          console.error('Error scheduling reminder:', reminderError);
+          // Continue with save even if reminder fails
         }
       }
-      
+
+      toast({
+        title: "Success",
+        description: "Event has been saved",
+      });
+
       // Navigate back to calendar
       router.push('/calendar');
     } catch (error) {
       console.error('Error saving event:', error);
-      // You might want to show an error toast here
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to save event",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -243,7 +286,7 @@ export default function AddEventPage() {
             <Checkbox
               id="enableReminder"
               checked={formData.enableReminder}
-              onCheckedChange={(checked) => handleInputChange('enableReminder', checked)}
+              onCheckedChange={(checked) => handleInputChange('enableReminder', checked === true)}
             />
             <Label htmlFor="enableReminder">
               Enable SMS reminder (15 minutes before event)
@@ -251,19 +294,20 @@ export default function AddEventPage() {
           </div>
 
           <div className="flex justify-end gap-4">
-            <Button 
-              type="button" 
-              variant="outline" 
+            <Button
+              type="button"
+              variant="outline"
               onClick={() => router.back()}
               className="border-[#ef4444] text-[#ef4444] hover:bg-[#ef4444] hover:text-white"
             >
               Cancel
             </Button>
-            <Button 
+            <Button
               type="submit"
               className="bg-[#ef4444] hover:bg-[#dc2626] text-white"
+              disabled={isSubmitting}
             >
-              Save Event
+              {isSubmitting ? 'Saving...' : 'Save Event'}
             </Button>
           </div>
         </form>

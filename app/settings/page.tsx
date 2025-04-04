@@ -268,10 +268,10 @@ export default function SettingsPage() {
           </TabsList>
 
           <TabsContent value="personal">
-        <Card>
-          <CardHeader>
+            <Card>
+              <CardHeader>
                 <CardTitle>Personal Information</CardTitle>
-          </CardHeader>
+              </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
@@ -286,22 +286,22 @@ export default function SettingsPage() {
                         })}
                       />
                     </div>
-            <div className="space-y-2">
+                    <div className="space-y-2">
                       <Label htmlFor="title">Professional Title</Label>
-              <Input
+                      <Input
                         id="title"
                         value={settings.personal.title}
                         onChange={(e) => setSettings({
                           ...settings,
                           personal: { ...settings.personal, title: e.target.value }
                         })}
-              />
-            </div>
-              <div className="space-y-2">
+                      />
+                    </div>
+                    <div className="space-y-2">
                       <Label htmlFor="email">Email</Label>
-                <Input
+                      <Input
                         id="email"
-                  type="email"
+                        type="email"
                         value={settings.personal.email}
                         onChange={(e) => setSettings({
                           ...settings,
@@ -311,7 +311,7 @@ export default function SettingsPage() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="phone">Phone</Label>
-                      <Input 
+                      <Input
                         id="phone"
                         value={settings.personal.phone}
                         onChange={(e) => setSettings({
@@ -329,23 +329,23 @@ export default function SettingsPage() {
                           ...settings,
                           personal: { ...settings.personal, licenseNumber: e.target.value }
                         })}
-                />
-              </div>
-              <div className="space-y-2">
+                      />
+                    </div>
+                    <div className="space-y-2">
                       <Label htmlFor="brokerage">Brokerage</Label>
-                <Input
+                      <Input
                         id="brokerage"
                         value={settings.personal.brokerage}
                         onChange={(e) => setSettings({
                           ...settings,
                           personal: { ...settings.personal, brokerage: e.target.value }
                         })}
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
                     <Label htmlFor="bio">Professional Bio</Label>
-                    <Textarea 
+                    <Textarea
                       id="bio"
                       value={settings.personal.bio}
                       onChange={(e) => setSettings({
@@ -459,7 +459,7 @@ export default function SettingsPage() {
 
                   <div className="space-y-6">
                     <h3 className="text-lg font-medium">Email Templates & Automation</h3>
-                    
+
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <div>
@@ -840,31 +840,31 @@ export default function SettingsPage() {
           </TabsContent>
 
           <TabsContent value="security">
-        <Card>
-          <CardHeader>
+            <Card>
+              <CardHeader>
                 <CardTitle>Security Settings</CardTitle>
-          </CardHeader>
+              </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-            <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between">
                     <div>
                       <Label>Two-Factor Authentication</Label>
                       <p className="text-sm text-gray-500">Add an extra layer of security to your account</p>
-              </div>
-              <Switch
+                    </div>
+                    <Switch
                       checked={settings.security.twoFactorEnabled}
                       onCheckedChange={(checked) => setSettings({
                         ...settings,
                         security: { ...settings.security, twoFactorEnabled: checked }
                       })}
-              />
-            </div>
-            <div className="flex items-center justify-between">
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
                     <div>
                       <Label>Login Alerts</Label>
                       <p className="text-sm text-gray-500">Get notified of new sign-ins to your account</p>
-              </div>
-              <Switch
+                    </div>
+                    <Switch
                       checked={settings.security.loginAlerts}
                       onCheckedChange={(checked) => setSettings({
                         ...settings,
@@ -873,16 +873,16 @@ export default function SettingsPage() {
                     />
                   </div>
                   <Button onClick={handleSubmit}>Save Security Settings</Button>
-            </div>
-          </CardContent>
-        </Card>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="business">
-        <Card>
-          <CardHeader>
+            <Card>
+              <CardHeader>
                 <CardTitle>Business Settings</CardTitle>
-          </CardHeader>
+              </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-2">
@@ -898,7 +898,7 @@ export default function SettingsPage() {
                       })}
                       placeholder="Enter areas separated by commas"
                     />
-              </div>
+                  </div>
                   <div className="space-y-2">
                     <Label>Specializations</Label>
                     <Input
@@ -911,32 +911,32 @@ export default function SettingsPage() {
                         }
                       })}
                       placeholder="Enter specializations separated by commas"
-              />
-            </div>
-              <div className="space-y-2">
+                    />
+                  </div>
+                  <div className="space-y-2">
                     <Label>Target Market</Label>
-                <Input
+                    <Input
                       value={settings.business.targetMarket}
                       onChange={(e) => setSettings({
                         ...settings,
                         business: { ...settings.business, targetMarket: e.target.value }
                       })}
-                />
-              </div>
-              <div className="space-y-2">
+                    />
+                  </div>
+                  <div className="space-y-2">
                     <Label>Commission Structure</Label>
-                <Input
+                    <Input
                       value={settings.business.commission}
                       onChange={(e) => setSettings({
                         ...settings,
                         business: { ...settings.business, commission: e.target.value }
                       })}
-                />
-              </div>
+                    />
+                  </div>
                   <Button type="submit">Save Business Settings</Button>
                 </form>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>

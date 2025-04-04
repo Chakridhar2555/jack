@@ -7,9 +7,9 @@ import { motion } from "framer-motion"
 import { DashboardLayout } from "@/components/layout"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ClipboardList, Users, Calendar as CalendarIcon, Clock, CheckCircle2, XCircle, AlertCircle } from "lucide-react"
+import { ClipboardList, Users, Calendar as CalendarIcon, Clock, CheckCircle2, XCircle, AlertCircle, MapPin } from "lucide-react"
 import { format } from "date-fns"
-import { 
+import {
   Table,
   TableBody,
   TableCell,
@@ -17,10 +17,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
 
 // Dynamically import heavy components
 const MonthView = dynamic(
-  () => import("@/components/calendar/month-view").then(mod => mod.default), 
+  () => import("@/components/calendar/month-view").then(mod => mod.default),
   {
     loading: () => (
       <div className="h-[400px] flex items-center justify-center">
@@ -88,7 +89,7 @@ function MetricsCards({ metrics }: { metrics: any }) {
   }
 
   return (
-    <motion.div 
+    <motion.div
       className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6"
       variants={container}
       initial="hidden"
@@ -154,13 +155,13 @@ function MetricsCards({ metrics }: { metrics: any }) {
 }
 
 // Separate tasks table into a component
-function TasksTable({ allTasks, getStatusIcon, getPriorityColor }: { 
-  allTasks: Task[], 
+function TasksTable({ allTasks, getStatusIcon, getPriorityColor }: {
+  allTasks: Task[],
   getStatusIcon: (status: string) => JSX.Element | null,
-  getPriorityColor: (priority: string) => string 
+  getPriorityColor: (priority: string) => string
 }) {
   return (
-    <motion.div 
+    <motion.div
       className="mb-6"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -229,6 +230,49 @@ function TasksTable({ allTasks, getStatusIcon, getPriorityColor }: {
   )
 }
 
+// Event component to display events for selected date
+function DailyEvents({ events, getTypeColor }: {
+  events: any[],
+  getTypeColor: (type: string) => string
+}) {
+  return (
+    <div className="space-y-3">
+      {events.length === 0 ? (
+        <div className="text-center text-muted-foreground py-8">
+          No events scheduled for this date
+        </div>
+      ) : (
+        events.map((event, index) => (
+          <motion.div
+            key={event.id || event._id}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 + index * 0.05 }}
+            className="border rounded-lg p-3 hover:shadow-md transition-shadow"
+          >
+            <div className="flex justify-between items-start mb-1">
+              <div className="font-medium">{event.time}</div>
+              <Badge className={getTypeColor(event.type)}>
+                {event.type}
+              </Badge>
+            </div>
+            <div className="font-semibold text-lg">{event.title}</div>
+            {event.location && (
+              <div className="flex items-center text-sm text-muted-foreground mt-1">
+                <MapPin className="h-3 w-3 mr-1" />
+                {event.location}
+              </div>
+            )}
+            {event.description && (
+              <div className="text-sm text-muted-foreground mt-2">{event.description}</div>
+            )}
+          </motion.div>
+        ))
+      )}
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const router = useRouter()
   const [selectedDate, setSelectedDate] = useState(new Date())
@@ -240,6 +284,8 @@ export default function DashboardPage() {
   })
   const [isLoading, setIsLoading] = useState(true)
   const [allTasks, setAllTasks] = useState<Task[]>([])
+  const [events, setEvents] = useState<any[]>([])
+  const [eventsForSelectedDate, setEventsForSelectedDate] = useState<any[]>([])
 
   useEffect(() => {
     let isMounted = true
@@ -248,21 +294,21 @@ export default function DashboardPage() {
       try {
         const leadsResponse = await fetch('/api/leads')
         const leadsData = await leadsResponse.json()
-        
+
         if (!isMounted) return
 
         // Calculate metrics
         const today = new Date()
         today.setHours(0, 0, 0, 0)
-        
+
         const nextWeek = new Date(today)
         nextWeek.setDate(nextWeek.getDate() + 7)
-        
+
         // Get all tasks from leads
         const allTasks: Task[] = leadsData.reduce((acc: Task[], lead: Lead) => {
           return lead.tasks ? [...acc, ...lead.tasks] : acc
         }, [])
-        
+
         const pendingTasks = allTasks.filter(task => task.status === 'pending')
         const todaysTasks = pendingTasks.filter(task => {
           const taskDate = new Date(task.date)
@@ -290,8 +336,38 @@ export default function DashboardPage() {
     }
 
     fetchMetrics()
+    fetchEvents()
+
     return () => { isMounted = false }
   }, [])
+
+  // Fetch calendar events
+  const fetchEvents = async () => {
+    try {
+      const response = await fetch('/api/events')
+      const data = await response.json()
+      setEvents(data)
+      filterEventsForSelectedDate(selectedDate, data)
+    } catch (error) {
+      console.error('Error fetching events:', error)
+    }
+  }
+
+  // Filter events for the selected date
+  const filterEventsForSelectedDate = (date: Date, eventsList = events) => {
+    const filtered = eventsList.filter(event => {
+      const eventDate = new Date(event.date)
+      return eventDate.toDateString() === date.toDateString()
+    }).sort((a, b) => a.time.localeCompare(b.time))
+
+    setEventsForSelectedDate(filtered)
+  }
+
+  // Handle date change
+  const handleDateChange = (date: Date) => {
+    setSelectedDate(date)
+    filterEventsForSelectedDate(date)
+  }
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -319,6 +395,23 @@ export default function DashboardPage() {
     }
   }
 
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case 'viewing':
+        return 'bg-blue-100 text-blue-800'
+      case 'meeting':
+        return 'bg-purple-100 text-purple-800'
+      case 'open-house':
+        return 'bg-green-100 text-green-800'
+      case 'follow-up':
+        return 'bg-yellow-100 text-yellow-800'
+      case 'call':
+        return 'bg-orange-100 text-orange-800'
+      default:
+        return 'bg-gray-100 text-gray-800'
+    }
+  }
+
   if (isLoading) {
     return (
       <DashboardLayout>
@@ -338,13 +431,13 @@ export default function DashboardPage() {
   return (
     <DashboardLayout>
       <Suspense fallback={<div>Loading...</div>}>
-        <motion.div 
+        <motion.div
           className="p-6"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5 }}
         >
-          <motion.h1 
+          <motion.h1
             className="text-2xl font-bold mb-6"
             initial={{ x: -20 }}
             animate={{ x: 0 }}
@@ -354,8 +447,8 @@ export default function DashboardPage() {
           </motion.h1>
 
           <MetricsCards metrics={metrics} />
-          <TasksTable 
-            allTasks={allTasks} 
+          <TasksTable
+            allTasks={allTasks}
             getStatusIcon={getStatusIcon}
             getPriorityColor={getPriorityColor}
           />
@@ -373,21 +466,34 @@ export default function DashboardPage() {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                   >
-              <Button
+                    <Button
                       onClick={() => router.push('/calendar/add')}
-                className="bg-red-500 hover:bg-red-600 text-white"
-              >
-                + Add New Event
-              </Button>
+                      className="bg-red-500 hover:bg-red-600 text-white"
+                    >
+                      + Add New Event
+                    </Button>
                   </motion.div>
                 </CardHeader>
                 <CardContent>
-            <MonthView
-              selectedDate={selectedDate}
-              onDateChange={setSelectedDate}
-            />
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-2">
+                      <MonthView
+                        selectedDate={selectedDate}
+                        onDateChange={handleDateChange}
+                      />
+                    </div>
+                    <div className="lg:col-span-1">
+                      <h3 className="text-lg font-semibold mb-3">
+                        Events for {format(selectedDate, 'MMMM d, yyyy')}
+                      </h3>
+                      <DailyEvents
+                        events={eventsForSelectedDate}
+                        getTypeColor={getTypeColor}
+                      />
+                    </div>
+                  </div>
                 </CardContent>
-          </Card>
+              </Card>
             </motion.div>
           </Suspense>
         </motion.div>
