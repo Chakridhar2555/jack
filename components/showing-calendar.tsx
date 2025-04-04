@@ -35,9 +35,15 @@ interface ShowingCalendarProps {
   showings: Showing[]
   onAddShowing: (showing: Showing) => void
   onUpdateShowing: (id: string, showing: Partial<Showing>) => void
+  onDateSelect?: (date: Date | undefined) => void
 }
 
-export function ShowingCalendar({ showings: initialShowings, onAddShowing, onUpdateShowing }: ShowingCalendarProps) {
+export function ShowingCalendar({
+  showings: initialShowings,
+  onAddShowing,
+  onUpdateShowing,
+  onDateSelect
+}: ShowingCalendarProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [selectedDate, setSelectedDate] = useState<Date>()
   const [showings, setShowings] = useState<Showing[]>(initialShowings)
@@ -65,7 +71,7 @@ export function ShowingCalendar({ showings: initialShowings, onAddShowing, onUpd
           status: showing.status || 'scheduled',
           type: showing.type || 'viewing'
         }))
-        
+
         // Merge with initialShowings, avoiding duplicates by ID
         const mergedShowings = [...initialShowings]
         parsedShowings.forEach((showing: Showing) => {
@@ -79,6 +85,14 @@ export function ShowingCalendar({ showings: initialShowings, onAddShowing, onUpd
       }
     }
   }, [initialShowings])
+
+  // Handle date selection and notify parent
+  const handleDateSelect = (date: Date | undefined) => {
+    setSelectedDate(date);
+    if (onDateSelect) {
+      onDateSelect(date);
+    }
+  }
 
   const handleAddShowing = () => {
     if (!selectedDate || !newShowing.time || !newShowing.property) {
@@ -117,10 +131,10 @@ export function ShowingCalendar({ showings: initialShowings, onAddShowing, onUpd
       localStorage.setItem('calendar_events', JSON.stringify([...existingEvents, dashboardEvent]))
       return updatedShowings
     })
-    
+
     // Call the parent's onAddShowing
     onAddShowing(showing)
-    
+
     // Reset form and close dialog
     setIsDialogOpen(false)
     setNewShowing({ status: 'scheduled', type: 'viewing' })
@@ -143,7 +157,7 @@ export function ShowingCalendar({ showings: initialShowings, onAddShowing, onUpd
   return (
     <div className="space-y-6">
       {/* Calendar Section */}
-      <div className="grid md:grid-cols-[300px,1fr] gap-6">
+      <div className="flex flex-col space-y-6">
         <div className="border rounded-lg p-4 shadow-sm space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="font-medium">Calendar</h3>
@@ -165,7 +179,7 @@ export function ShowingCalendar({ showings: initialShowings, onAddShowing, onUpd
                       <Calendar
                         mode="single"
                         selected={selectedDate}
-                        onSelect={setSelectedDate}
+                        onSelect={handleDateSelect}
                         className="rounded-md border mt-2"
                       />
                     </div>
@@ -224,13 +238,13 @@ export function ShowingCalendar({ showings: initialShowings, onAddShowing, onUpd
           <Calendar
             mode="single"
             selected={selectedDate}
-            onSelect={setSelectedDate}
+            onSelect={handleDateSelect}
             className="rounded-md"
             modifiers={{
               hasShowing: (date) => getShowingsForDate(date).length > 0
             }}
             modifiersStyles={{
-              hasShowing: { 
+              hasShowing: {
                 backgroundColor: '#fef2f2',
                 color: '#ef4444',
                 fontWeight: 'bold'
@@ -239,71 +253,75 @@ export function ShowingCalendar({ showings: initialShowings, onAddShowing, onUpd
           />
         </div>
 
-        {/* Showings List Section */}
-        <div className="space-y-4">
-          {selectedDate ? (
-            <>
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                Showings for {selectedDate.toLocaleDateString()}
-                <Badge variant="secondary" className="ml-2">
-                  {getShowingsForDate(selectedDate).length} showing(s)
-                </Badge>
-              </h3>
-              <div className="grid gap-4">
-                {getShowingsForDate(selectedDate).map((showing) => (
-                  <div
-                    key={showing.id}
-                    className="bg-white border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex justify-between items-start">
-                      <div className="space-y-1">
-                        <div className="font-medium text-lg">{showing.time}</div>
-                        <div className="text-gray-600">{showing.property}</div>
-                        {showing.notes && (
-                          <div className="text-sm text-gray-500 mt-2">
-                            Notes: {showing.notes}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge
-                          className={
-                            showing.status === 'completed' ? 'bg-green-100 text-green-800' :
+        {/* Showings List Section - Now below the calendar */}
+        {selectedDate ? (
+          <div className="border rounded-lg p-4 shadow-sm space-y-4">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              Showings for {selectedDate.toLocaleDateString()}
+              <Badge variant="secondary" className="ml-2">
+                {getShowingsForDate(selectedDate).length} showing(s)
+              </Badge>
+            </h3>
+            <div className="grid gap-4">
+              {getShowingsForDate(selectedDate).map((showing) => (
+                <div
+                  key={showing.id}
+                  className="bg-white border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow"
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="space-y-1">
+                      <div className="font-medium text-lg">{showing.time}</div>
+                      <div className="text-gray-600">{showing.property}</div>
+                      {showing.notes && (
+                        <div className="text-sm text-gray-500 mt-2">
+                          Notes: {showing.notes}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        className={
+                          showing.status === 'completed' ? 'bg-green-100 text-green-800' :
                             showing.status === 'cancelled' ? 'bg-red-100 text-red-800' :
-                            'bg-blue-100 text-blue-800'
+                              'bg-blue-100 text-blue-800'
+                        }
+                      >
+                        {showing.status}
+                      </Badge>
+                      <Select
+                        value={showing.status}
+                        onValueChange={(value) => {
+                          if (showing.id) {
+                            onUpdateShowing(showing.id, { status: value as Showing['status'] })
                           }
-                        >
-                          {showing.status}
-                        </Badge>
-                        <Select
-                          value={showing.status}
-                          onValueChange={(value) => {
-                            if (showing.id) {
-                              onUpdateShowing(showing.id, { status: value as Showing['status'] })
-                            }
-                          }}
-                        >
-                          <SelectTrigger className="w-[130px]">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="scheduled">Scheduled</SelectItem>
-                            <SelectItem value="completed">Completed</SelectItem>
-                            <SelectItem value="cancelled">Cancelled</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
+                        }}
+                      >
+                        <SelectTrigger className="w-[130px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="scheduled">Scheduled</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
+                          <SelectItem value="cancelled">Cancelled</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
-                ))}
-              </div>
-            </>
-          ) : (
-            <div className="text-center py-8 text-gray-500">
-              Select a date to view showings
+                </div>
+              ))}
+
+              {getShowingsForDate(selectedDate).length === 0 && (
+                <div className="text-center py-4 text-gray-500">
+                  No showings scheduled for this date
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="border rounded-lg p-6 text-center text-gray-500">
+            Select a date to view showings
+          </div>
+        )}
       </div>
     </div>
   )
