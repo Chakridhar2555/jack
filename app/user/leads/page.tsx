@@ -66,11 +66,9 @@ type LeadFormData = {
   callHistory: Lead['callHistory'];
   propertyPreferences: Lead['propertyPreferences'];
   assignedTo: string;
-  documents: Lead['documents'];
   showings: Lead['showings'];
   tasks: Lead['tasks'];
-  offers: Lead['offers'];
-  location: Lead['location'];
+  location: string;
   age?: number;
   gender?: Lead['gender'];
   language: string;
@@ -104,11 +102,14 @@ type LeadFormData = {
   };
 };
 
-const leadStatuses = [
-  { value: "cold", label: "Cold" },
-  { value: "warm", label: "Warm" },
+type LeadStatus = NonNullable<Lead['leadStatus']>;
+type LeadSource = NonNullable<Lead['leadSource']>;
+
+const leadStatuses: { value: LeadStatus; label: string }[] = [
   { value: "hot", label: "Hot" },
-  { value: "mild", label: "Mild" },
+  { value: "warm", label: "Warm" },
+  { value: "cold", label: "Cold" },
+  { value: "mild", label: "Mild" }
 ];
 
 const leadResponses = [
@@ -119,12 +120,12 @@ const leadResponses = [
   { value: "always responding", label: "Always Responding" },
 ];
 
-const leadSources = [
+const leadSources: { value: LeadSource; label: string }[] = [
   { value: "google ads", label: "Google Ads" },
   { value: "meta", label: "Meta" },
   { value: "refferal", label: "Referral" },
   { value: "linkedin", label: "LinkedIn" },
-  { value: "youtube", label: "YouTube" },
+  { value: "youtube", label: "YouTube" }
 ];
 
 const leadTypes = [
@@ -142,24 +143,21 @@ const clientTypes = [
   { value: "commercial buyer", label: "Commercial Buyer" },
 ];
 
-const defaultLead: LeadFormData = {
+const defaultFormData: LeadFormData = {
   name: "",
   email: "",
   phone: "",
   status: "",
   property: "",
   notes: "",
-  leadStatus: "cold",
-  leadResponse: "inactive",
+  leadStatus: "hot",
+  leadResponse: "active",
   leadSource: "google ads",
   leadType: "buyer",
-  clientType: "custom buyer",
+  clientType: "first home buyer",
   callHistory: [],
   propertyPreferences: {
-    budget: {
-      min: 0,
-      max: 0
-    },
+    budget: { min: 0, max: 0 },
     propertyType: [],
     bedrooms: 0,
     bathrooms: 0,
@@ -167,13 +165,9 @@ const defaultLead: LeadFormData = {
     features: []
   },
   assignedTo: "",
-  documents: [],
   showings: [],
   tasks: [],
-  offers: [],
-  location: {
-    address: ""
-  },
+  location: "",
   age: undefined,
   gender: undefined,
   language: "",
@@ -181,12 +175,12 @@ const defaultLead: LeadFormData = {
   realtorAssociation: {
     name: "",
     membershipNumber: "",
-    joinDate: new Date().toISOString().split('T')[0]
+    joinDate: ""
   },
   closedSales: {
     count: 0,
     totalValue: 0,
-    lastClosedDate: new Date().toISOString().split('T')[0]
+    lastClosedDate: ""
   },
   assignedAgent: {
     id: "",
@@ -195,7 +189,7 @@ const defaultLead: LeadFormData = {
     phone: ""
   },
   propertyDetails: {
-    lastClosedDate: new Date().toISOString().split('T')[0],
+    lastClosedDate: "",
     propertyType: "",
     bedrooms: 0,
     bathrooms: 0,
@@ -230,7 +224,7 @@ export default function LeadsPage() {
     clientType: ""
   });
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
-  const [formData, setFormData] = useState<LeadFormData>(defaultLead);
+  const [formData, setFormData] = useState<LeadFormData>(defaultFormData);
   const [isNewLeadDialogOpen, setIsNewLeadDialogOpen] = useState(false);
   const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
   const [leadToDelete, setLeadToDelete] = useState<Lead | null>(null);
@@ -270,14 +264,19 @@ export default function LeadsPage() {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const { source, ...submitData } = formData;
+      const data = {
+        ...formData,
+        property: typeof formData.property === 'string' ? formData.property : "",
+        location: formData.location || "",
+        leadSource: formData.leadSource || "google ads"
+      };
       const response = await fetch('/api/leads', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          ...submitData,
+          ...data,
           date: new Date().toISOString()
         }),
       });
@@ -286,12 +285,12 @@ export default function LeadsPage() {
         throw new Error('Failed to create lead');
       }
 
-      const data = await response.json();
-      setLeads(prev => [...prev, data]);
+      const newLead = await response.json();
+      setLeads(prev => [...prev, newLead]);
       setIsNewLeadDialogOpen(false);
-      setFormData(defaultLead);
+      setFormData(defaultFormData);
     } catch (error) {
-      console.error('Error creating lead:', error);
+      console.error('Error submitting form:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -355,11 +354,12 @@ export default function LeadsPage() {
 
   const filteredLeads = leads.filter((lead) => {
     const query = searchQuery.toLowerCase();
+    const propertySearch = lead.property ? lead.property.toLowerCase().includes(query) : false;
     const matchesSearch = 
       lead.name.toLowerCase().includes(query) ||
       lead.email.toLowerCase().includes(query) ||
       lead.phone.toLowerCase().includes(query) ||
-      lead.property.toLowerCase().includes(query);
+      propertySearch;
 
     const matchesFilters = 
       (filters.leadStatus === "" || lead.leadStatus === filters.leadStatus) &&
@@ -374,33 +374,30 @@ export default function LeadsPage() {
   const handleEdit = (lead: Lead) => {
     setEditingLead(lead);
     setFormData({
-      name: lead.name,
-      email: lead.email,
-      phone: lead.phone,
-      status: lead.status,
-      property: lead.property,
-      notes: lead.notes,
-      leadStatus: lead.leadStatus,
-      leadResponse: lead.leadResponse,
-      leadSource: lead.leadSource,
-      leadType: lead.leadType,
-      clientType: lead.clientType,
-      callHistory: lead.callHistory,
-      propertyPreferences: lead.propertyPreferences,
-      assignedTo: lead.assignedTo,
-      documents: lead.documents,
-      showings: lead.showings,
-      tasks: lead.tasks,
-      offers: lead.offers,
-      location: lead.location,
+      ...defaultFormData,
+      name: lead.name || "",
+      email: lead.email || "",
+      phone: lead.phone || "",
+      status: lead.status || "",
+      property: typeof lead.property === 'string' ? lead.property : "",
+      notes: lead.notes || "",
+      leadStatus: lead.leadStatus || "hot",
+      leadResponse: lead.leadResponse || "active",
+      leadSource: lead.leadSource || "google ads",
+      leadType: lead.leadType || "buyer",
+      clientType: lead.clientType || "first home buyer",
+      callHistory: lead.callHistory || [],
+      propertyPreferences: lead.propertyPreferences || defaultFormData.propertyPreferences,
+      assignedTo: lead.assignedTo || "",
+      showings: lead.showings || [],
+      tasks: lead.tasks || [],
+      location: lead.location || "",
       age: lead.age,
       gender: lead.gender,
-      language: lead.language,
-      religion: lead.religion,
-      realtorAssociation: lead.realtorAssociation,
-      closedSales: lead.closedSales,
-      assignedAgent: lead.assignedAgent,
-      propertyDetails: lead.propertyDetails
+      language: lead.language || "",
+      religion: lead.religion || "",
+      realtorAssociation: lead.realtorAssociation || defaultFormData.realtorAssociation,
+      closedSales: lead.closedSales || defaultFormData.closedSales
     });
     setIsNewLeadDialogOpen(true);
   };
@@ -410,7 +407,7 @@ export default function LeadsPage() {
       const current = prev.realtorAssociation || {
         name: '',
         membershipNumber: '',
-        joinDate: new Date().toISOString().split('T')[0]
+        joinDate: ""
       };
       return {
         ...prev,
@@ -428,7 +425,7 @@ export default function LeadsPage() {
       const current = prev.closedSales || {
         count: 0,
         totalValue: 0,
-        lastClosedDate: new Date().toISOString().split('T')[0]
+        lastClosedDate: ""
       };
       return {
         ...prev,
@@ -444,14 +441,14 @@ export default function LeadsPage() {
   const handlePropertyDetailsChange = (field: PropertyDetailsField, value: string | number | string[]) => {
     setFormData((prev: LeadFormData) => {
       const current = prev.propertyDetails || {
-        lastClosedDate: new Date().toISOString().split('T')[0],
-        propertyType: '',
+        lastClosedDate: "",
+        propertyType: "",
         bedrooms: 0,
         bathrooms: 0,
         squareFootage: 0,
         yearBuilt: 0,
-        lotSize: '',
-        parking: '',
+        lotSize: "",
+        parking: "",
         features: []
       };
       return {
@@ -491,7 +488,7 @@ export default function LeadsPage() {
         <Button
           onClick={() => {
             setEditingLead(null);
-            setFormData(defaultLead);
+            setFormData(defaultFormData);
             setIsNewLeadDialogOpen(true);
           }}
           className="bg-red-500 hover:bg-red-600"
@@ -716,7 +713,7 @@ export default function LeadsPage() {
                         </div>
                         <div className="flex items-center">
                           <MapPin className="h-4 w-4 mr-2 text-gray-400" />
-                          {lead.location?.address || 'No address'}
+                          {lead.location || 'No location'}
                         </div>
                       </div>
                     </TableCell>
@@ -730,7 +727,7 @@ export default function LeadsPage() {
                         {(lead.leadType || 'buyer').charAt(0).toUpperCase() + (lead.leadType || 'buyer').slice(1)}
                       </div>
                     </TableCell>
-                    <TableCell className="text-gray-300">{lead.source ?? 'Unknown'}</TableCell>
+                    <TableCell className="text-gray-300">{lead.leadSource || 'Unknown'}</TableCell>
                     <TableCell className="text-gray-300">
                       {lead.createdAt ? new Date(lead.createdAt).toLocaleDateString() : 'Unknown'}
                     </TableCell>
@@ -814,13 +811,10 @@ export default function LeadsPage() {
                 <Label htmlFor="address">Address</Label>
                 <Input
                   id="address"
-                  value={formData.location?.address || ""}
+                  value={formData.location || ""}
                   onChange={(e) => setFormData({ 
                     ...formData, 
-                    location: { 
-                      ...formData.location, 
-                      address: e.target.value 
-                    } 
+                    location: e.target.value 
                   })}
                   className="bg-gray-700 border-gray-600"
                 />
@@ -828,15 +822,15 @@ export default function LeadsPage() {
               <div className="space-y-2">
                 <Label htmlFor="leadStatus">Status</Label>
                 <Select
-                  value={formData.leadStatus}
-                  onValueChange={(value: Lead['leadStatus']) => setFormData({ ...formData, leadStatus: value })}
+                  value={formData.leadStatus || "hot"}
+                  onValueChange={(value: string) => setFormData({ ...formData, leadStatus: value as LeadStatus })}
                 >
                   <SelectTrigger className="bg-gray-700 border-gray-600">
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent className="bg-gray-700 border-gray-600">
                     {leadStatuses.map((status) => (
-                      <SelectItem key={status.value} value={status.value as Lead['leadStatus']}>
+                      <SelectItem key={status.value} value={status.value}>
                         {status.label}
                       </SelectItem>
                     ))}
@@ -844,10 +838,10 @@ export default function LeadsPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="source">Source</Label>
+                <Label htmlFor="leadSource">Source</Label>
                 <Select
-                  value={formData.source}
-                  onValueChange={(value) => setFormData({ ...formData, source: value })}
+                  value={formData.leadSource || "google ads"}
+                  onValueChange={(value: string) => setFormData({ ...formData, leadSource: value as LeadSource })}
                 >
                   <SelectTrigger className="bg-gray-700 border-gray-600">
                     <SelectValue placeholder="Select source" />

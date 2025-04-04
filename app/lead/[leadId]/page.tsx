@@ -50,11 +50,11 @@ const leadTypes = [
 ];
 
 const clientTypes = [
-  { value: 'Investor', label: 'Investor' },
-  { value: 'custom buyer', label: 'Custom Buyer' },
-  { value: 'first home buyer', label: 'First Home Buyer' },
-  { value: 'seasonal investor', label: 'Seasonal Investor' },
+  { value: 'investor', label: 'Investor' },
   { value: 'commercial buyer', label: 'Commercial Buyer' },
+  { value: 'seasonal investor', label: 'Seasonal Investor' },
+  { value: 'first home buyer', label: 'First Home Buyer' },
+  { value: 'custom buyer', label: 'Custom Buyer' },
 ];
 
 type Gender = 'male' | 'female' | 'other' | 'prefer not to say';
@@ -121,100 +121,32 @@ export default function LeadDetailPage() {
 
     setIsLoading(true);
     try {
-      // Prepare the complete lead data for submission
-      const completeLeadData = {
-        ...leadData,
-        // Property Details
-        propertyDetails: {
-          propertyType: leadData.propertyDetails?.propertyType ?? '',
-          lastClosedDate: leadData.propertyDetails?.lastClosedDate ?? '',
-          bedrooms: leadData.propertyDetails?.bedrooms ?? 0,
-          bathrooms: leadData.propertyDetails?.bathrooms ?? 0,
-          squareFootage: leadData.propertyDetails?.squareFootage ?? 0,
-          yearBuilt: leadData.propertyDetails?.yearBuilt ?? 0,
-          lotSize: leadData.propertyDetails?.lotSize ?? '',
-          parking: leadData.propertyDetails?.parking ?? '',
-          features: leadData.propertyDetails?.features ?? []
-        },
-        // Basic Information
-        name: leadData.name,
-        email: leadData.email,
-        phone: leadData.phone,
-        // Demographics
-        age: leadData.age || null,
-        gender: leadData.gender || null,
-        language: leadData.language || '',
-        religion: leadData.religion || '',
-        // Sales Information
-        realtorAssociation: {
-          name: leadData.realtorAssociation?.name || '',
-          membershipNumber: leadData.realtorAssociation?.membershipNumber || '',
-          joinDate: leadData.realtorAssociation?.joinDate || ''
-        },
-        // Closed Sales
-        closedSales: {
-          count: leadData.closedSales?.count || 0,
-          totalValue: leadData.closedSales?.totalValue || 0,
-          lastClosedDate: leadData.closedSales?.lastClosedDate || ''
-        },
-        // Assignment & Property
-        assignedTo: leadData.assignedTo || 'unassigned',
-        location: {
-          address: leadData.location?.address || ''
-        },
-        // Lead Status and Response
-        leadStatus: leadData.leadStatus,
-        leadResponse: leadData.leadResponse,
-        // Property Preferences
-        propertyPreferences: {
-          budget: {
-            min: leadData.propertyPreferences?.budget?.min || 0,
-            max: leadData.propertyPreferences?.budget?.max || 0
-          },
-          propertyType: leadData.propertyPreferences?.propertyType || [],
-          bedrooms: leadData.propertyPreferences?.bedrooms || 0,
-          bathrooms: leadData.propertyPreferences?.bathrooms || 0,
-          locations: leadData.propertyPreferences?.locations || [],
-          features: leadData.propertyPreferences?.features || []
-        },
-        // Tasks and Showings
-        tasks: leadData.tasks || [],
-        showings: leadData.showings || [],
-        // Notes and Call History
-        notes: leadData.notes || '',
-        callHistory: leadData.callHistory || [],
-        // Update timestamp
-        updatedAt: new Date().toISOString()
-      };
-
       const response = await fetch(`/api/leads/${params.leadId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(completeLeadData),
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...leadData,
+          location: leadData.location || '',  // Ensure location is a string
+        }),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to update lead");
+        throw new Error('Failed to update lead');
       }
-
-      // Update local state with the response data
-      const updatedLead = await response.json();
-      setLeadData(updatedLead);
-
-      // Dispatch custom event to notify lead update
-      window.dispatchEvent(new Event('leadUpdated'));
 
       toast({
         title: "Success",
-        description: "Lead information saved successfully",
+        description: "Lead updated successfully"
       });
+      router.refresh();
     } catch (error) {
-      console.error("Update lead error:", error);
+      console.error('Error updating lead:', error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to save lead information",
+        description: "Failed to update lead"
       });
     } finally {
       setIsLoading(false);
@@ -558,12 +490,10 @@ export default function LeadDetailPage() {
                     <div className="space-y-2">
                       <Label>Location</Label>
                       <Input
-                        value={leadData.location?.address || ''}
+                        value={leadData.location || ''}
                         onChange={(e) => setLeadData({
                           ...leadData,
-                          location: {
-                            address: e.target.value
-                          }
+                          location: e.target.value
                         })}
                       />
                     </div>
@@ -764,6 +694,46 @@ export default function LeadDetailPage() {
                       </Select>
                     </div>
                   </div>
+                </div>
+
+                {/* Client Type */}
+                <div className="space-y-2">
+                  <Label>Client Type</Label>
+                  <Select
+                    value={leadData.clientType || ''}
+                    onValueChange={(value) => setLeadData({ ...leadData, clientType: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select client type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {clientTypes.map((type) => (
+                        <SelectItem key={type.value} value={type.value}>
+                          {type.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Lead Type */}
+                <div className="space-y-2">
+                  <Label>Lead Type</Label>
+                  <Select
+                    value={leadData.leadType || ''}
+                    onValueChange={(value) => setLeadData({ ...leadData, leadType: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select lead type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {leadTypes.map((type) => (
+                        <SelectItem key={type.value} value={type.value}>
+                          {type.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Add Save Changes button at the bottom */}
@@ -1017,110 +987,95 @@ export default function LeadDetailPage() {
               <CardHeader className="border-b">
                 <div className="flex justify-between items-center">
                   <CardTitle>Property Showings</CardTitle>
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button className="bg-[#ef4444] hover:bg-[#dc2626] text-white">
-                        <Plus className="h-4 w-4 mr-2" />
-                        Schedule Showing
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Schedule a Showing</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4 py-4">
-                        <ShowingCalendar 
-                          showings={leadData.showings || []}
-                          onAddShowing={async (showing) => {
-                            const newShowing: Showing = {
-                              id: showing.id || new Date().toISOString(),
-                              date: showing.date instanceof Date ? showing.date : new Date(showing.date),
-                              time: showing.time || '',
-                              property: showing.property || '',
-                              status: showing.status || 'scheduled',
-                              notes: showing.notes || ''
-                            };
-
-                            const updatedShowings = [...(leadData.showings || []), newShowing];
-                            setLeadData({
-                              ...leadData,
-                              showings: updatedShowings
-                            });
-
-                            try {
-                              const response = await fetch(`/api/leads/${params.leadId}/showings`, {
-                                method: "PUT",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ showings: updatedShowings })
-                              });
-
-                              if (!response.ok) {
-                                throw new Error("Failed to schedule showing");
-                              }
-
-                              toast({
-                                title: "Success",
-                                description: "Showing scheduled successfully",
-                              });
-                            } catch (error) {
-                              toast({
-                                variant: "destructive",
-                                title: "Error",
-                                description: "Failed to schedule showing",
-                              });
-                            }
-                          }}
-                          onUpdateShowing={handleShowingUpdate}
-                        />
-                      </div>
-                    </DialogContent>
-                  </Dialog>
+                  <Button 
+                    onClick={() => {
+                      const dialog = document.querySelector('[role="dialog"]');
+                      if (dialog) {
+                        dialog.setAttribute('open', 'true');
+                      }
+                    }}
+                    className="bg-[#ef4444] hover:bg-[#dc2626] text-white"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Schedule Showing
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent className="p-6">
-                <ShowingCalendar 
-                  showings={leadData.showings || []}
-                  onAddShowing={async (showing) => {
-                    const newShowing: Showing = {
-                      id: showing.id || new Date().toISOString(),
-                      date: showing.date instanceof Date ? showing.date : new Date(showing.date),
-                      time: showing.time || '',
-                      property: showing.property || '',
-                      status: showing.status || 'scheduled',
-                      notes: showing.notes || ''
-                    };
+                <div className="flex flex-col space-y-8">
+                  {/* Calendar Section */}
+                  <ShowingCalendar 
+                    showings={leadData.showings || []}
+                    onAddShowing={async (showing) => {
+                      const newShowing: Showing = {
+                        id: showing.id || new Date().toISOString(),
+                        date: showing.date instanceof Date ? showing.date : new Date(showing.date),
+                        time: showing.time || '',
+                        property: showing.property || '',
+                        status: showing.status || 'scheduled',
+                        notes: showing.notes || ''
+                      };
 
-                    const updatedShowings = [...(leadData.showings || []), newShowing];
-                    setLeadData({
-                      ...leadData,
-                      showings: updatedShowings
-                    });
-
-                    try {
-                      const response = await fetch(`/api/leads/${params.leadId}/showings`, {
-                        method: "PUT",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ showings: updatedShowings })
+                      const updatedShowings = [...(leadData.showings || []), newShowing];
+                      setLeadData({
+                        ...leadData,
+                        showings: updatedShowings
                       });
 
-                      if (!response.ok) {
-                        throw new Error("Failed to schedule showing");
+                      try {
+                        const response = await fetch(`/api/leads/${params.leadId}/showings`, {
+                          method: "PUT",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ showings: updatedShowings })
+                        });
+
+                        if (!response.ok) {
+                          throw new Error("Failed to schedule showing");
+                        }
+
+                        toast({
+                          title: "Success",
+                          description: "Showing scheduled successfully",
+                        });
+                      } catch (error) {
+                        toast({
+                          variant: "destructive",
+                          title: "Error",
+                          description: "Failed to schedule showing",
+                        });
                       }
+                    }}
+                    onUpdateShowing={handleShowingUpdate}
+                  />
 
-                      toast({
-                        title: "Success",
-                        description: "Showing scheduled successfully",
-                      });
-                    } catch (error) {
-                      toast({
-                        variant: "destructive",
-                        title: "Error",
-                        description: "Failed to schedule showing",
-                      });
-                    }
-                  }}
-                  onUpdateShowing={handleShowingUpdate}
-                />
+                  {/* Showings List Section */}
+                  <div className="w-full">
+                    <h3 className="text-lg font-medium mb-4">All Upcoming Showings</h3>
+                    <div className="space-y-4">
+                      {leadData.showings?.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+                        .filter(showing => new Date(showing.date) >= new Date())
+                        .map((showing) => (
+                          <div key={showing.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                            <div>
+                              <p className="font-medium">{showing.property}</p>
+                              <p className="text-sm text-gray-500">
+                                {new Date(showing.date).toLocaleDateString()} at {showing.time}
+                              </p>
+                              {showing.notes && (
+                                <p className="text-sm text-gray-600 mt-1">{showing.notes}</p>
+                              )}
+                            </div>
+                            <Badge variant={showing.status === 'scheduled' ? 'default' : 'secondary'}>
+                              {showing.status}
+                            </Badge>
+                          </div>
+                        ))}
+                      {(!leadData.showings || leadData.showings.length === 0) && (
+                        <p className="text-gray-500 text-center">No upcoming showings scheduled</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
 

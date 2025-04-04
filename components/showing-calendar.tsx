@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Calendar } from '@/components/ui/calendar'
 import {
   Dialog,
@@ -25,6 +25,10 @@ interface Showing {
   property: string
   notes?: string
   status: 'scheduled' | 'completed' | 'cancelled'
+  type?: 'viewing' | 'meeting' | 'open-house' | 'follow-up' | 'call'
+  title?: string
+  description?: string
+  location?: string
 }
 
 interface ShowingCalendarProps {
@@ -33,13 +37,48 @@ interface ShowingCalendarProps {
   onUpdateShowing: (id: string, showing: Partial<Showing>) => void
 }
 
-export function ShowingCalendar({ showings, onAddShowing, onUpdateShowing }: ShowingCalendarProps) {
+export function ShowingCalendar({ showings: initialShowings, onAddShowing, onUpdateShowing }: ShowingCalendarProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [selectedDate, setSelectedDate] = useState<Date>()
+  const [showings, setShowings] = useState<Showing[]>(initialShowings)
   const [newShowing, setNewShowing] = useState<Partial<Showing>>({
-    status: 'scheduled'
+    status: 'scheduled',
+    type: 'viewing'
   })
   const { toast } = useToast()
+
+  // Update local showings state when initialShowings prop changes
+  useEffect(() => {
+    setShowings(initialShowings)
+  }, [initialShowings])
+
+  // Load showings from localStorage on component mount and merge with initialShowings
+  useEffect(() => {
+    const savedShowings = localStorage.getItem('calendar_events')
+    if (savedShowings) {
+      try {
+        const parsedShowings = JSON.parse(savedShowings).map((showing: any) => ({
+          ...showing,
+          date: new Date(showing.date),
+          // Convert dashboard events to showing format
+          property: showing.location || showing.property || '',
+          status: showing.status || 'scheduled',
+          type: showing.type || 'viewing'
+        }))
+        
+        // Merge with initialShowings, avoiding duplicates by ID
+        const mergedShowings = [...initialShowings]
+        parsedShowings.forEach((showing: Showing) => {
+          if (!mergedShowings.find(s => s.id === showing.id)) {
+            mergedShowings.push(showing)
+          }
+        })
+        setShowings(mergedShowings)
+      } catch (error) {
+        console.error('Error parsing showings:', error)
+      }
+    }
+  }, [initialShowings])
 
   const handleAddShowing = () => {
     if (!selectedDate || !newShowing.time || !newShowing.property) {
@@ -52,16 +91,39 @@ export function ShowingCalendar({ showings, onAddShowing, onUpdateShowing }: Sho
     }
 
     const showing: Showing = {
+      id: Date.now().toString(),
       date: selectedDate,
       time: newShowing.time,
       property: newShowing.property,
       notes: newShowing.notes,
-      status: 'scheduled'
+      status: 'scheduled',
+      type: newShowing.type || 'viewing',
+      title: `Showing: ${newShowing.property}`,
+      description: newShowing.notes || '',
+      location: newShowing.property
     }
 
+    // Update local state
+    setShowings(prevShowings => {
+      const updatedShowings = [...prevShowings, showing]
+      // Save to localStorage with dashboard event format
+      const dashboardEvent = {
+        ...showing,
+        title: showing.title,
+        location: showing.property,
+        type: showing.type || 'viewing'
+      }
+      const existingEvents = JSON.parse(localStorage.getItem('calendar_events') || '[]')
+      localStorage.setItem('calendar_events', JSON.stringify([...existingEvents, dashboardEvent]))
+      return updatedShowings
+    })
+    
+    // Call the parent's onAddShowing
     onAddShowing(showing)
+    
+    // Reset form and close dialog
     setIsDialogOpen(false)
-    setNewShowing({ status: 'scheduled' })
+    setNewShowing({ status: 'scheduled', type: 'viewing' })
     setSelectedDate(undefined)
 
     toast({
@@ -85,7 +147,7 @@ export function ShowingCalendar({ showings, onAddShowing, onUpdateShowing }: Sho
         <div className="border rounded-lg p-4 shadow-sm space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="font-medium">Calendar</h3>
-            <Dialog>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm" className="bg-[#ef4444] hover:bg-[#dc2626] text-white border-0">
                   <Plus className="h-4 w-4 mr-2" />

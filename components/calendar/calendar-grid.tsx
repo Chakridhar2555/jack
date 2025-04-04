@@ -25,9 +25,10 @@ interface Event {
 interface CalendarGridProps {
   selectedDate: Date;
   onDateChange: (date: Date) => void;
+  events?: Event[];
 }
 
-export function CalendarGrid({ selectedDate, onDateChange }: CalendarGridProps) {
+export function CalendarGrid({ selectedDate, onDateChange, events: propEvents }: CalendarGridProps) {
   const router = useRouter()
   const days = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
   const [events, setEvents] = useState<Event[]>([])
@@ -40,19 +41,42 @@ export function CalendarGrid({ selectedDate, onDateChange }: CalendarGridProps) 
   }, [selectedDate])
 
   useEffect(() => {
-    const savedEvents = localStorage.getItem('calendar_events')
-    if (savedEvents) {
-      try {
-        const parsedEvents = JSON.parse(savedEvents).map((event: any) => ({
-          ...event,
-          date: new Date(event.date)
-        }))
-        setEvents(parsedEvents)
-      } catch (error) {
-        console.error('Error parsing events:', error)
-        setEvents([])
+    if (propEvents) {
+      setEvents(propEvents)
+    } else {
+      const savedEvents = localStorage.getItem('calendar_events')
+      if (savedEvents) {
+        try {
+          const parsedEvents = JSON.parse(savedEvents).map((event: any) => ({
+            ...event,
+            date: new Date(event.date)
+          }))
+          setEvents(parsedEvents)
+        } catch (error) {
+          console.error('Error parsing events:', error)
+          setEvents([])
+        }
       }
     }
+  }, [propEvents])
+
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'calendar_events') {
+        try {
+          const newEvents = JSON.parse(e.newValue || '[]').map((event: any) => ({
+            ...event,
+            date: new Date(event.date)
+          }))
+          setEvents(newEvents)
+        } catch (error) {
+          console.error('Error parsing events from storage:', error)
+        }
+      }
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
   }, [])
 
   const getDayEvents = (date: Date) => {
