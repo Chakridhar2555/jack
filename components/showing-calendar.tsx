@@ -168,66 +168,93 @@ export function ShowingCalendar({
                   Schedule
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[500px]">
-                <DialogHeader>
-                  <DialogTitle>Schedule a Showing</DialogTitle>
+              <DialogContent className="max-w-[800px] max-h-[90vh] overflow-y-auto p-6">
+                <DialogHeader className="mb-4 pb-2 border-b">
+                  <DialogTitle className="text-xl">Schedule a Showing</DialogTitle>
                 </DialogHeader>
-                <div className="space-y-6 py-4">
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Left column - Calendar */}
                   <div className="space-y-4">
-                    <div>
-                      <Label>Date</Label>
-                      <Calendar
-                        mode="single"
-                        selected={selectedDate}
-                        onSelect={handleDateSelect}
-                        className="rounded-md border mt-2"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Time</Label>
-                        <Input
-                          type="time"
-                          value={newShowing.time || ''}
-                          onChange={(e) => setNewShowing({ ...newShowing, time: e.target.value })}
+                    <div className="space-y-2">
+                      <Label htmlFor="showing-date" className="text-base font-medium">Select Date</Label>
+                      <div className="border rounded-md p-3 bg-white">
+                        <Calendar
+                          mode="single"
+                          selected={selectedDate}
+                          onSelect={handleDateSelect}
+                          className="w-full"
                         />
                       </div>
-                      <div className="space-y-2">
-                        <Label>Status</Label>
-                        <Select
-                          value={newShowing.status}
-                          onValueChange={(value) => setNewShowing({ ...newShowing, status: value as Showing['status'] })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="scheduled">Scheduled</SelectItem>
-                            <SelectItem value="completed">Completed</SelectItem>
-                            <SelectItem value="cancelled">Cancelled</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
                     </div>
+                  </div>
+
+                  {/* Right column - Form fields */}
+                  <div className="space-y-5">
                     <div className="space-y-2">
-                      <Label>Property</Label>
+                      <Label htmlFor="showing-time" className="text-base font-medium">Time</Label>
                       <Input
+                        id="showing-time"
+                        type="time"
+                        value={newShowing.time || ''}
+                        onChange={(e) => setNewShowing({ ...newShowing, time: e.target.value })}
+                        className="h-10"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="showing-property" className="text-base font-medium">Property</Label>
+                      <Input
+                        id="showing-property"
                         value={newShowing.property || ''}
                         onChange={(e) => setNewShowing({ ...newShowing, property: e.target.value })}
                         placeholder="Enter property address"
+                        className="h-10"
                       />
                     </div>
+
                     <div className="space-y-2">
-                      <Label>Notes</Label>
+                      <Label htmlFor="showing-status" className="text-base font-medium">Status</Label>
+                      <Select
+                        value={newShowing.status}
+                        onValueChange={(value) => setNewShowing({ ...newShowing, status: value as Showing['status'] })}
+                      >
+                        <SelectTrigger id="showing-status" className="h-10">
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="scheduled">Scheduled</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
+                          <SelectItem value="cancelled">Cancelled</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="showing-notes" className="text-base font-medium">Notes</Label>
                       <Textarea
+                        id="showing-notes"
                         value={newShowing.notes || ''}
                         onChange={(e) => setNewShowing({ ...newShowing, notes: e.target.value })}
                         placeholder="Add any additional notes"
+                        className="h-20 resize-none"
                       />
                     </div>
                   </div>
-                  <div className="flex justify-end">
-                    <Button onClick={handleAddShowing} className="bg-[#ef4444] hover:bg-[#dc2626] text-white">
+                </div>
+
+                <div className="pt-6 mt-4 flex justify-end border-t">
+                  <div className="flex gap-3">
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsDialogOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleAddShowing}
+                      className="bg-[#ef4444] hover:bg-[#dc2626] text-white px-6"
+                    >
                       Schedule Showing
                     </Button>
                   </div>

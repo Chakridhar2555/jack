@@ -14,7 +14,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { ArrowLeft, Phone, Plus, Save } from "lucide-react"
 import { formatDate } from "@/lib/utils"
 import { CallHistory } from "@/components/call-history"
-import type { Lead, Task, Showing } from "@/lib/types"
+import { Lead as BaseLeadType, Task, Showing } from "@/lib/types"
 import { ShowingCalendar } from "@/components/showing-calendar"
 import { TaskManager } from "@/components/task-manager"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -57,7 +57,25 @@ const clientTypes = [
   { value: 'custom buyer', label: 'Custom Buyer' },
 ];
 
-type Gender = 'male' | 'female' | 'other' | 'prefer not to say';
+type Gender = 'male' | 'female' | 'other' | 'prefer-not-to-say';
+
+// Add propertyDetails type definition
+interface PropertyDetails {
+  lastClosedDate: string;
+  propertyType: string;
+  bedrooms: number;
+  bathrooms: number;
+  squareFootage: number;
+  yearBuilt: number;
+  lotSize: string;
+  parking: string;
+  features: string[];
+}
+
+// Create a custom Lead type that extends the base Lead type
+type Lead = BaseLeadType & {
+  propertyDetails?: PropertyDetails;
+}
 
 export default function LeadDetailPage() {
   const router = useRouter()
@@ -516,8 +534,11 @@ export default function LeadDetailPage() {
                     <div className="space-y-2">
                       <Label>Gender</Label>
                       <Select
-                        value={(leadData.gender as Gender) || ''}
-                        onValueChange={(value: Gender) => setLeadData({ ...leadData, gender: value })}
+                        value={(leadData.gender || '')}
+                        onValueChange={(value: string) => setLeadData({
+                          ...leadData,
+                          gender: value as Gender
+                        })}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Select gender" />
@@ -526,7 +547,7 @@ export default function LeadDetailPage() {
                           <SelectItem value="male">Male</SelectItem>
                           <SelectItem value="female">Female</SelectItem>
                           <SelectItem value="other">Other</SelectItem>
-                          <SelectItem value="prefer not to say">Prefer not to say</SelectItem>
+                          <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -661,8 +682,11 @@ export default function LeadDetailPage() {
                     <div className="space-y-2">
                       <Label>Lead Status</Label>
                       <Select
-                        value={leadData.leadStatus}
-                        onValueChange={(value: Lead['leadStatus']) => setLeadData({ ...leadData, leadStatus: value })}
+                        value={leadData.leadStatus || ''}
+                        onValueChange={(value: string) => setLeadData({
+                          ...leadData,
+                          leadStatus: value as BaseLeadType['leadStatus']
+                        })}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Select lead status" />
@@ -679,8 +703,11 @@ export default function LeadDetailPage() {
                     <div className="space-y-2">
                       <Label>Lead Response</Label>
                       <Select
-                        value={leadData.leadResponse}
-                        onValueChange={(value: Lead['leadResponse']) => setLeadData({ ...leadData, leadResponse: value })}
+                        value={leadData.leadResponse || ''}
+                        onValueChange={(value: string) => setLeadData({
+                          ...leadData,
+                          leadResponse: value as BaseLeadType['leadResponse']
+                        })}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Select lead response" />
@@ -702,7 +729,10 @@ export default function LeadDetailPage() {
                   <Label>Client Type</Label>
                   <Select
                     value={leadData.clientType || ''}
-                    onValueChange={(value) => setLeadData({ ...leadData, clientType: value })}
+                    onValueChange={(value: string) => setLeadData({
+                      ...leadData,
+                      clientType: value as BaseLeadType['clientType']
+                    })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select client type" />
@@ -722,7 +752,10 @@ export default function LeadDetailPage() {
                   <Label>Lead Type</Label>
                   <Select
                     value={leadData.leadType || ''}
-                    onValueChange={(value) => setLeadData({ ...leadData, leadType: value })}
+                    onValueChange={(value: string) => setLeadData({
+                      ...leadData,
+                      leadType: value as BaseLeadType['leadType']
+                    })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select lead type" />
@@ -988,18 +1021,6 @@ export default function LeadDetailPage() {
               <CardHeader className="border-b">
                 <div className="flex justify-between items-center">
                   <CardTitle>Property Showings</CardTitle>
-                  <Button
-                    onClick={() => {
-                      const dialog = document.querySelector('[role="dialog"]');
-                      if (dialog) {
-                        dialog.setAttribute('open', 'true');
-                      }
-                    }}
-                    className="bg-[#ef4444] hover:bg-[#dc2626] text-white"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Schedule Showing
-                  </Button>
                 </div>
               </CardHeader>
               <CardContent className="p-6">

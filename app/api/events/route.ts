@@ -7,12 +7,14 @@ export async function GET() {
     const { db } = await connectToDatabase();
     
     // Fetch all events from the events collection
+    // This will now include showing events that were synced
     const events = await db.collection('events').find({}).toArray();
     
-    // Transform MongoDB _id to string
+    // Transform MongoDB _id to string and ensure consistent date format
     const formattedEvents = events.map(event => ({
       ...event,
       _id: event._id.toString(),
+      date: event.date instanceof Date ? event.date : new Date(event.date)
     }));
     
     return NextResponse.json(formattedEvents);
@@ -80,6 +82,43 @@ export async function PUT(request: Request) {
         { error: 'Event not found' },
         { status: 404 }
       );
+    }
+
+    // If this is a showing event, also update the corresponding showing in the lead
+    if (updateData.showingId && updateData.leadId) {
+      try {
+        // Get the lead
+        const lead = await db.collection('leads').findOne(
+          { _id: new ObjectId(updateData.leadId) },
+          { projection: { showings: 1 } }
+        );
+
+        if (lead && lead.showings) {
+          // Update the specific showing within the lead
+          const updatedShowings = lead.showings.map((showing: any) => {
+            if (showing.id === updateData.showingId) {
+              return {
+                ...showing,
+                status: updateData.status,
+                time: updateData.time,
+                date: updateData.date,
+                property: updateData.location,
+                notes: updateData.description
+              };
+            }
+            return showing;
+          });
+
+          // Update the lead
+          await db.collection('leads').updateOne(
+            { _id: new ObjectId(updateData.leadId) },
+            { $set: { showings: updatedShowings } }
+          );
+        }
+      } catch (error) {
+        console.error('Error updating lead showing:', error);
+        // Continue with the response even if lead update fails
+      }
     }
     
     return NextResponse.json({ 
