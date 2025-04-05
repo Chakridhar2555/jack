@@ -344,10 +344,26 @@ export default function DashboardPage() {
   // Fetch calendar events
   const fetchEvents = async () => {
     try {
+      // First fetch lead showings to ensure they're synchronized with events
+      await fetch('/api/showings')
+
+      // Now fetch all events (which will include synchronized showings)
       const response = await fetch('/api/events')
       const data = await response.json()
-      setEvents(data)
-      filterEventsForSelectedDate(selectedDate, data)
+
+      // Process the events to handle date objects
+      const processedEvents = data.map((event: any) => ({
+        ...event,
+        date: new Date(event.date),
+        type: event.type || 'meeting'
+      }))
+
+      setEvents(processedEvents)
+
+      // Also store in localStorage for components that read from there
+      localStorage.setItem('calendar_events', JSON.stringify(processedEvents))
+
+      filterEventsForSelectedDate(selectedDate, processedEvents)
     } catch (error) {
       console.error('Error fetching events:', error)
     }

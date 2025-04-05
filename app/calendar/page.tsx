@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { DashboardLayout } from "@/components/layout"
 import { Calendar } from '@/components/ui/calendar'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -44,54 +44,44 @@ export default function CalendarPage() {
     fetchData()
   }, [])
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setIsLoading(true)
-    await Promise.all([
-      fetchAllShowings(),
-      fetchEvents()
-    ])
-    setIsLoading(false)
-  }
-
-  const fetchAllShowings = async () => {
     try {
-      const response = await fetch('/api/showings')
-      if (!response.ok) {
-        throw new Error('Failed to fetch showings')
-      }
-      const data = await response.json()
-      setShowings(data)
-      return data
-    } catch (error) {
-      console.error("Error fetching showings:", error)
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to fetch showings",
-      })
-      return []
-    }
-  }
+      // Fetch lead showings to ensure they're synchronized with events
+      await fetch('/api/showings')
 
-  const fetchEvents = async () => {
-    try {
+      // Now fetch all events (which will include synchronized showings)
       const response = await fetch('/api/events')
+
       if (!response.ok) {
         throw new Error('Failed to fetch events')
       }
+
       const data = await response.json()
-      setEvents(data)
-      return data
+
+      // Process the events to handle date objects
+      const processedEvents = data.map((event: any) => ({
+        ...event,
+        date: new Date(event.date),
+        type: event.type || 'meeting'
+      }))
+
+      setEvents(processedEvents)
+
+      // Store in localStorage for components that read from there
+      localStorage.setItem('calendar_events', JSON.stringify(processedEvents))
+
+      setIsLoading(false)
     } catch (error) {
-      console.error("Error fetching events:", error)
+      console.error('Error fetching data:', error)
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to fetch events",
+        description: "Failed to fetch calendar data",
       })
-      return []
+      setIsLoading(false)
     }
-  }
+  }, [toast])
 
   const getShowingsForDate = (date: Date) => {
     return showings.filter(showing => {

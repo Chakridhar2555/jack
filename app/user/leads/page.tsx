@@ -23,7 +23,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { UserPlus, Edit2, Trash2, Phone, Mail, MapPin, Eye, Filter, Search } from "lucide-react";
+import { UserPlus, Edit2, Trash2, Phone, Mail, MapPin, Eye, Filter, Search, ChevronDown, ChevronUp } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -228,6 +228,8 @@ export default function LeadsPage() {
   const [isNewLeadDialogOpen, setIsNewLeadDialogOpen] = useState(false);
   const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
   const [leadToDelete, setLeadToDelete] = useState<Lead | null>(null);
+  const [showSalesInfo, setShowSalesInfo] = useState(false);
+  const [showPropertyDetails, setShowPropertyDetails] = useState(false);
 
   useEffect(() => {
     fetchLeads();
@@ -245,7 +247,7 @@ export default function LeadsPage() {
 
       const response = await fetch(`/api/leads?assignedTo=${user._id}`);
       const data = await response.json();
-      
+
       // Only set leads that are assigned to the current user
       setLeads(data.filter((lead: Lead) => lead.assignedTo === user._id));
       setIsLoading(false);
@@ -308,7 +310,7 @@ export default function LeadsPage() {
         title: "Success",
         description: "Lead deleted successfully",
       });
-      
+
       fetchLeads();
     } catch (error) {
       toast({
@@ -323,7 +325,7 @@ export default function LeadsPage() {
 
   const getStatusColor = (status: string | undefined) => {
     if (!status) return "text-gray-400 bg-gray-400/10";
-    
+
     switch (status.toLowerCase()) {
       case "cold":
         return "text-blue-400 bg-blue-400/10";
@@ -355,13 +357,13 @@ export default function LeadsPage() {
   const filteredLeads = leads.filter((lead) => {
     const query = searchQuery.toLowerCase();
     const propertySearch = lead.property ? lead.property.toLowerCase().includes(query) : false;
-    const matchesSearch = 
+    const matchesSearch =
       lead.name.toLowerCase().includes(query) ||
       lead.email.toLowerCase().includes(query) ||
       lead.phone.toLowerCase().includes(query) ||
       propertySearch;
 
-    const matchesFilters = 
+    const matchesFilters =
       (filters.leadStatus === "" || lead.leadStatus === filters.leadStatus) &&
       (filters.leadType === "" || lead.leadType === filters.leadType) &&
       (filters.leadSource === "" || lead.leadSource === filters.leadSource) &&
@@ -642,7 +644,7 @@ export default function LeadsPage() {
                       >
                         Reset
                       </Button>
-                      <Button 
+                      <Button
                         onClick={() => setIsFilterDialogOpen(false)}
                         className="bg-red-500 hover:bg-red-600"
                       >
@@ -768,14 +770,14 @@ export default function LeadsPage() {
       </Card>
 
       <Dialog open={isNewLeadDialogOpen} onOpenChange={setIsNewLeadDialogOpen}>
-        <DialogContent className="bg-gray-800 text-gray-100">
+        <DialogContent className="bg-gray-800 text-gray-100 max-w-4xl w-[90vw]">
           <DialogHeader>
             <DialogTitle>
               {editingLead ? "Edit Lead" : "Add New Lead"}
             </DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+          <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Name</Label>
                 <Input
@@ -812,9 +814,9 @@ export default function LeadsPage() {
                 <Input
                   id="address"
                   value={formData.location || ""}
-                  onChange={(e) => setFormData({ 
-                    ...formData, 
-                    location: e.target.value 
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    location: e.target.value
                   })}
                   className="bg-gray-700 border-gray-600"
                 />
@@ -898,9 +900,9 @@ export default function LeadsPage() {
                 <Label htmlFor="gender">Gender</Label>
                 <Select
                   value={formData.gender || ""}
-                  onValueChange={(value) => setFormData({ 
-                    ...formData, 
-                    gender: value as Lead['gender'] 
+                  onValueChange={(value) => setFormData({
+                    ...formData,
+                    gender: value as Lead['gender']
                   })}
                 >
                   <SelectTrigger className="bg-gray-700 border-gray-600">
@@ -934,139 +936,149 @@ export default function LeadsPage() {
               </div>
             </div>
             <div className="space-y-4">
-              <h3 className="text-lg font-medium text-gray-100">Sales Information</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="realtorAssociation">Realtor Association</Label>
-                  <Input
-                    id="realtorAssociation"
-                    value={formData.realtorAssociation?.name || ''}
-                    onChange={(e) => handleRealtorAssociationChange('name', e.target.value)}
-                    className="bg-gray-700 border-gray-600"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="membershipNumber">Membership Number</Label>
-                  <Input
-                    id="membershipNumber"
-                    value={formData.realtorAssociation?.membershipNumber || ''}
-                    onChange={(e) => handleRealtorAssociationChange('membershipNumber', e.target.value)}
-                    className="bg-gray-700 border-gray-600"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="joinDate">Join Date</Label>
-                  <Input
-                    id="joinDate"
-                    type="date"
-                    value={formData.realtorAssociation?.joinDate || ''}
-                    onChange={(e) => handleRealtorAssociationChange('joinDate', e.target.value)}
-                    className="bg-gray-700 border-gray-600"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="closedSalesCount">Closed Sales Count</Label>
-                  <Input
-                    id="closedSalesCount"
-                    type="number"
-                    value={formData.closedSales?.count || 0}
-                    onChange={(e) => handleClosedSalesChange('count', parseInt(e.target.value) || 0)}
-                    className="bg-gray-700 border-gray-600"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="totalValue">Total Value</Label>
-                  <Input
-                    id="totalValue"
-                    type="number"
-                    value={formData.closedSales?.totalValue || 0}
-                    onChange={(e) => handleClosedSalesChange('totalValue', parseInt(e.target.value) || 0)}
-                    className="bg-gray-700 border-gray-600"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lastClosedDate">Last Closed Date</Label>
-                  <Input
-                    id="lastClosedDate"
-                    type="date"
-                    value={formData.closedSales?.lastClosedDate || ''}
-                    onChange={(e) => handleClosedSalesChange('lastClosedDate', e.target.value)}
-                    className="bg-gray-700 border-gray-600"
-                  />
-                </div>
+              <div className="flex items-center justify-between cursor-pointer" onClick={() => setShowSalesInfo(!showSalesInfo)}>
+                <h3 className="text-lg font-medium text-gray-100">Sales Information</h3>
+                {showSalesInfo ? <ChevronUp className="h-5 w-5 text-gray-400" /> : <ChevronDown className="h-5 w-5 text-gray-400" />}
               </div>
+              {showSalesInfo && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="realtorAssociation">Realtor Association</Label>
+                    <Input
+                      id="realtorAssociation"
+                      value={formData.realtorAssociation?.name || ''}
+                      onChange={(e) => handleRealtorAssociationChange('name', e.target.value)}
+                      className="bg-gray-700 border-gray-600"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="membershipNumber">Membership Number</Label>
+                    <Input
+                      id="membershipNumber"
+                      value={formData.realtorAssociation?.membershipNumber || ''}
+                      onChange={(e) => handleRealtorAssociationChange('membershipNumber', e.target.value)}
+                      className="bg-gray-700 border-gray-600"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="joinDate">Join Date</Label>
+                    <Input
+                      id="joinDate"
+                      type="date"
+                      value={formData.realtorAssociation?.joinDate || ''}
+                      onChange={(e) => handleRealtorAssociationChange('joinDate', e.target.value)}
+                      className="bg-gray-700 border-gray-600"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="closedSalesCount">Closed Sales Count</Label>
+                    <Input
+                      id="closedSalesCount"
+                      type="number"
+                      value={formData.closedSales?.count || 0}
+                      onChange={(e) => handleClosedSalesChange('count', parseInt(e.target.value) || 0)}
+                      className="bg-gray-700 border-gray-600"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="totalValue">Total Value</Label>
+                    <Input
+                      id="totalValue"
+                      type="number"
+                      value={formData.closedSales?.totalValue || 0}
+                      onChange={(e) => handleClosedSalesChange('totalValue', parseInt(e.target.value) || 0)}
+                      className="bg-gray-700 border-gray-600"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="lastClosedDate">Last Closed Date</Label>
+                    <Input
+                      id="lastClosedDate"
+                      type="date"
+                      value={formData.closedSales?.lastClosedDate || ''}
+                      onChange={(e) => handleClosedSalesChange('lastClosedDate', e.target.value)}
+                      className="bg-gray-700 border-gray-600"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
             <div className="space-y-4">
-              <h3 className="text-lg font-medium text-gray-100">Property Details</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="propertyType">Property Type</Label>
-                  <Input
-                    id="propertyType"
-                    value={formData.propertyDetails.propertyType}
-                    onChange={(e) => handlePropertyDetailsChange('propertyType', e.target.value)}
-                    className="bg-gray-700 border-gray-600"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="bedrooms">Bedrooms</Label>
-                  <Input
-                    id="bedrooms"
-                    type="number"
-                    value={formData.propertyDetails.bedrooms}
-                    onChange={(e) => handlePropertyDetailsChange('bedrooms', parseInt(e.target.value) || 0)}
-                    className="bg-gray-700 border-gray-600"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="bathrooms">Bathrooms</Label>
-                  <Input
-                    id="bathrooms"
-                    type="number"
-                    value={formData.propertyDetails.bathrooms}
-                    onChange={(e) => handlePropertyDetailsChange('bathrooms', parseInt(e.target.value) || 0)}
-                    className="bg-gray-700 border-gray-600"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="squareFootage">Square Footage</Label>
-                  <Input
-                    id="squareFootage"
-                    type="number"
-                    value={formData.propertyDetails.squareFootage}
-                    onChange={(e) => handlePropertyDetailsChange('squareFootage', parseInt(e.target.value) || 0)}
-                    className="bg-gray-700 border-gray-600"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="yearBuilt">Year Built</Label>
-                  <Input
-                    id="yearBuilt"
-                    type="number"
-                    value={formData.propertyDetails.yearBuilt}
-                    onChange={(e) => handlePropertyDetailsChange('yearBuilt', parseInt(e.target.value) || 0)}
-                    className="bg-gray-700 border-gray-600"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lotSize">Lot Size</Label>
-                  <Input
-                    id="lotSize"
-                    value={formData.propertyDetails.lotSize}
-                    onChange={(e) => handlePropertyDetailsChange('lotSize', e.target.value)}
-                    className="bg-gray-700 border-gray-600"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="parking">Parking</Label>
-                  <Input
-                    id="parking"
-                    value={formData.propertyDetails.parking}
-                    onChange={(e) => handlePropertyDetailsChange('parking', e.target.value)}
-                    className="bg-gray-700 border-gray-600"
-                  />
-                </div>
+              <div className="flex items-center justify-between cursor-pointer" onClick={() => setShowPropertyDetails(!showPropertyDetails)}>
+                <h3 className="text-lg font-medium text-gray-100">Property Details</h3>
+                {showPropertyDetails ? <ChevronUp className="h-5 w-5 text-gray-400" /> : <ChevronDown className="h-5 w-5 text-gray-400" />}
               </div>
+              {showPropertyDetails && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="propertyType">Property Type</Label>
+                    <Input
+                      id="propertyType"
+                      value={formData.propertyDetails.propertyType}
+                      onChange={(e) => handlePropertyDetailsChange('propertyType', e.target.value)}
+                      className="bg-gray-700 border-gray-600"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="bedrooms">Bedrooms</Label>
+                    <Input
+                      id="bedrooms"
+                      type="number"
+                      value={formData.propertyDetails.bedrooms}
+                      onChange={(e) => handlePropertyDetailsChange('bedrooms', parseInt(e.target.value) || 0)}
+                      className="bg-gray-700 border-gray-600"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="bathrooms">Bathrooms</Label>
+                    <Input
+                      id="bathrooms"
+                      type="number"
+                      value={formData.propertyDetails.bathrooms}
+                      onChange={(e) => handlePropertyDetailsChange('bathrooms', parseInt(e.target.value) || 0)}
+                      className="bg-gray-700 border-gray-600"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="squareFootage">Square Footage</Label>
+                    <Input
+                      id="squareFootage"
+                      type="number"
+                      value={formData.propertyDetails.squareFootage}
+                      onChange={(e) => handlePropertyDetailsChange('squareFootage', parseInt(e.target.value) || 0)}
+                      className="bg-gray-700 border-gray-600"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="yearBuilt">Year Built</Label>
+                    <Input
+                      id="yearBuilt"
+                      type="number"
+                      value={formData.propertyDetails.yearBuilt}
+                      onChange={(e) => handlePropertyDetailsChange('yearBuilt', parseInt(e.target.value) || 0)}
+                      className="bg-gray-700 border-gray-600"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="lotSize">Lot Size</Label>
+                    <Input
+                      id="lotSize"
+                      value={formData.propertyDetails.lotSize}
+                      onChange={(e) => handlePropertyDetailsChange('lotSize', e.target.value)}
+                      className="bg-gray-700 border-gray-600"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="parking">Parking</Label>
+                    <Input
+                      id="parking"
+                      value={formData.propertyDetails.parking}
+                      onChange={(e) => handlePropertyDetailsChange('parking', e.target.value)}
+                      className="bg-gray-700 border-gray-600"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
             <div className="flex justify-end gap-2">
               <Button
